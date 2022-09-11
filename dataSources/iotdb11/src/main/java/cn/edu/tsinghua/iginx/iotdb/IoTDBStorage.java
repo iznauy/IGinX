@@ -28,7 +28,8 @@ import cn.edu.tsinghua.iginx.engine.physical.storage.fault_tolerance.Connector;
 import cn.edu.tsinghua.iginx.engine.physical.task.StoragePhysicalTask;
 import cn.edu.tsinghua.iginx.engine.physical.task.TaskExecuteResult;
 import cn.edu.tsinghua.iginx.engine.shared.TimeRange;
-import cn.edu.tsinghua.iginx.engine.shared.data.read.ClearEmptyRowStreamWrapper;
+import cn.edu.tsinghua.iginx.engine.shared.data.read.Field;
+import cn.edu.tsinghua.iginx.engine.shared.data.read.Header;
 import cn.edu.tsinghua.iginx.engine.shared.data.read.RowStream;
 import cn.edu.tsinghua.iginx.engine.shared.data.write.BitmapView;
 import cn.edu.tsinghua.iginx.engine.shared.data.write.ColumnDataView;
@@ -37,15 +38,16 @@ import cn.edu.tsinghua.iginx.engine.shared.data.write.RowDataView;
 import cn.edu.tsinghua.iginx.engine.shared.operator.Delete;
 import cn.edu.tsinghua.iginx.engine.shared.operator.Insert;
 import cn.edu.tsinghua.iginx.engine.shared.operator.Operator;
-import cn.edu.tsinghua.iginx.engine.shared.operator.type.OperatorType;
+import cn.edu.tsinghua.iginx.engine.shared.operator.OperatorType;
 import cn.edu.tsinghua.iginx.engine.shared.operator.Project;
 import cn.edu.tsinghua.iginx.engine.shared.operator.Select;
 import cn.edu.tsinghua.iginx.engine.shared.operator.filter.AndFilter;
 import cn.edu.tsinghua.iginx.engine.shared.operator.filter.Filter;
 import cn.edu.tsinghua.iginx.engine.shared.operator.filter.Op;
-import cn.edu.tsinghua.iginx.engine.shared.operator.filter.KeyFilter;
+import cn.edu.tsinghua.iginx.engine.shared.operator.filter.TimeFilter;
 import cn.edu.tsinghua.iginx.engine.shared.operator.tag.TagFilter;
 import cn.edu.tsinghua.iginx.iotdb.query.entity.IoTDBQueryRowStream;
+import cn.edu.tsinghua.iginx.engine.shared.data.read.ClearEmptyRowStreamWrapper;
 import cn.edu.tsinghua.iginx.iotdb.tools.DataViewWrapper;
 import cn.edu.tsinghua.iginx.iotdb.tools.FilterTransformer;
 import cn.edu.tsinghua.iginx.iotdb.tools.TagKVUtils;
@@ -81,7 +83,7 @@ public class IoTDBStorage implements IStorage {
 
     private static final int BATCH_SIZE = 10000;
 
-    private static final String STORAGE_ENGINE = "iotdb12";
+    private static final String STORAGE_ENGINE = "iotdb11";
 
     private static final String USERNAME = "username";
 
@@ -123,9 +125,15 @@ public class IoTDBStorage implements IStorage {
             throw new StorageInitializationException("unexpected database: " + meta.getStorageEngine());
         }
         if (!testConnection()) {
-            throw new StorageInitializationException("cannot connect to " + meta.toString());
+            throw new StorageInitializationException("cannot connect to " + meta);
         }
         sessionPool = createSessionPool();
+        logger.info(meta + " is initialized.");
+    }
+
+    @Override
+    public void release() throws PhysicalException {
+        sessionPool.close();
     }
 
     private boolean testConnection() {
@@ -154,7 +162,9 @@ public class IoTDBStorage implements IStorage {
 
     @Override
     public Connector getConnector() {
-        return null;
+        return new IoTDBConnector(this.meta.getIp(), this.meta.getPort(),
+                this.meta.getExtraParams().getOrDefault(USERNAME, DEFAULT_USERNAME),
+                this.meta.getExtraParams().getOrDefault(PASSWORD, DEFAULT_PASSWORD));
     }
 
     @Override
@@ -173,10 +183,7 @@ public class IoTDBStorage implements IStorage {
                 filter = ((Select) operators.get(1)).getFilter();
             } else {
                 FragmentMeta fragment = task.getTargetFragment();
-                filter = new AndFilter(Arrays.asList(new KeyFilter(Op.GE, fragment.getTimeInterval().getStartTime()), new KeyFilter(Op.L, fragment.getTimeInterval().getEndTime())));
-            }
-            if (task.isSkipData()) {
-                filter = new AndFilter(Arrays.asList(filter, new KeyFilter(Op.G, task.getLastTimestamp())));
+                filter = new AndFilter(Arrays.asList(new TimeFilter(Op.GE, fragment.getTimeInterval().getStartTime()), new TimeFilter(Op.L, fragment.getTimeInterval().getEndTime())));
             }
             return isDummyStorageUnit ? executeQueryHistoryTask(task.getTargetFragment().getTsInterval(), project, filter) : executeQueryTask(storageUnit, project, filter);
         } else if (op.getType() == OperatorType.Insert) {
@@ -245,10 +252,6 @@ public class IoTDBStorage implements IStorage {
         return new Pair<>(tsInterval, timeInterval);
     }
 
-    @Override
-    public void release() throws PhysicalException {
-        sessionPool.close();
-    }
 
     @Override
     public List<Timeseries> getTimeSeries() throws PhysicalException {
@@ -305,13 +308,13 @@ public class IoTDBStorage implements IStorage {
                 builder.append(path);
                 builder.append(',');
             }
-            String statement = String.format(QUERY_DATA, builder.deleteCharAt(builder.length() - 1).toString(), storageUnit, FilterTransformer.toString(filter));
+            String statement = String.format(QUERY_DATA, builder.deleteCharAt(builder.length() - 1), storageUnit, FilterTransformer.toString(filter));
             logger.info("[Query] execute query: " + statement);
             RowStream rowStream = new ClearEmptyRowStreamWrapper(new IoTDBQueryRowStream(sessionPool.executeQueryStatement(statement), true, project));
             return new TaskExecuteResult(rowStream);
         } catch (IoTDBConnectionException | StatementExecutionException e) {
             logger.error(e.getMessage());
-            return new TaskExecuteResult(new PhysicalTaskExecuteFailureException("execute project task in iotdb12 failure", e));
+            return new TaskExecuteResult(new PhysicalTaskExecuteFailureException("execute project task in iotdb11 failure", e));
         }
     }
 
@@ -326,16 +329,16 @@ public class IoTDBStorage implements IStorage {
         try {
             StringBuilder builder = new StringBuilder();
             for (String path : project.getPatterns()) {
-                builder.append(path);
+                builder.append(getRealPathWithoutPrefix(path, timeSeriesInterval.getSchemaPrefix()));
                 builder.append(',');
             }
             String statement = String.format(QUERY_HISTORY_DATA, builder.deleteCharAt(builder.length() - 1).toString(), FilterTransformer.toString(filter));
             logger.info("[Query] execute query: " + statement);
-            RowStream rowStream = new ClearEmptyRowStreamWrapper(new IoTDBQueryRowStream(sessionPool.executeQueryStatement(statement), false, project));
+            RowStream rowStream = new ClearEmptyRowStreamWrapper(new IoTDBQueryRowStream(sessionPool.executeQueryStatement(statement), false, project, timeSeriesInterval.getSchemaPrefix()));
             return new TaskExecuteResult(rowStream);
         } catch (IoTDBConnectionException | StatementExecutionException e) {
             logger.error(e.getMessage());
-            return new TaskExecuteResult(new PhysicalTaskExecuteFailureException("execute project task in iotdb12 failure", e));
+            return new TaskExecuteResult(new PhysicalTaskExecuteFailureException("execute project task in iotdb11 failure", e));
         }
     }
 
@@ -357,7 +360,7 @@ public class IoTDBStorage implements IStorage {
                 break;
         }
         if (e != null) {
-            return new TaskExecuteResult(null, new PhysicalException("execute insert task in iotdb12 failure", e));
+            return new TaskExecuteResult(null, new PhysicalException("execute insert task in iotdb11 failure", e));
         }
         return new TaskExecuteResult(null, null);
     }
@@ -403,8 +406,8 @@ public class IoTDBStorage implements IStorage {
             for (int i = cnt; i < cnt + size; i++) {
                 int index = 0;
                 deviceIdToRow.clear();
-                BitmapView bitmapView = data.getBitmapView(i);
                 for (int j = 0; j < data.getPathNum(); j++) {
+                    BitmapView bitmapView = data.getBitmapView(i);
                     if (bitmapView.get(j)) {
                         String path = data.getPath(j);
                         String deviceId = PREFIX + storageUnit + "." + path.substring(0, path.lastIndexOf('.'));
@@ -473,8 +476,8 @@ public class IoTDBStorage implements IStorage {
             // 插入 timestamps 和 values
             for (int i = cnt; i < cnt + size; i++) {
                 int index = 0;
-                BitmapView bitmapView = data.getBitmapView(i);
                 for (int j = 0; j < data.getPathNum(); j++) {
+                    BitmapView bitmapView = data.getBitmapView(i);
                     if (bitmapView.get(j)) {
                         String path = data.getPath(j);
                         String deviceId = PREFIX + storageUnit + "." + path.substring(0, path.lastIndexOf('.'));
@@ -634,8 +637,8 @@ public class IoTDBStorage implements IStorage {
                     String deviceId = PREFIX + storageUnit + "." + path.substring(0, path.lastIndexOf('.'));
                     String measurement = path.substring(path.lastIndexOf('.') + 1);
                     Tablet tablet = tabletsMap.get(entry.getKey()).get(deviceId);
-                    BitmapView bitmapView = data.getBitmapView(index);
                     for (int j = cnt; j < cnt + size; j++) {
+                        BitmapView bitmapView = data.getBitmapView(index);
                         if (bitmapView.get(j)) {
                             int row = tablet.rowSize++;
                             tablet.addTimestamp(row, data.getTimestamp(j));
@@ -674,7 +677,7 @@ public class IoTDBStorage implements IStorage {
                 } catch (IoTDBConnectionException | StatementExecutionException e) {
                     logger.warn("encounter error when clear data: " + e.getMessage());
                     if (!e.getMessage().contains(DOES_NOT_EXISTED)) {
-                        return new TaskExecuteResult(new PhysicalTaskExecuteFailureException("execute clear data in iotdb12 failure", e));
+                        return new TaskExecuteResult(new PhysicalTaskExecuteFailureException("execute clear data in iotdb11 failure", e));
                     }
                 }
             } else {
@@ -707,7 +710,7 @@ public class IoTDBStorage implements IStorage {
             } catch (IoTDBConnectionException | StatementExecutionException | PhysicalException e) {
                 logger.warn("encounter error when delete data: " + e.getMessage());
                 if (!e.getMessage().contains(DOES_NOT_EXISTED)) {
-                    return new TaskExecuteResult(new PhysicalTaskExecuteFailureException("execute delete data task in iotdb12 failure", e));
+                    return new TaskExecuteResult(new PhysicalTaskExecuteFailureException("execute delete data task in iotdb11 failure", e));
                 }
             }
         }

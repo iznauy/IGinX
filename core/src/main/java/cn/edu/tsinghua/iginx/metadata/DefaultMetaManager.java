@@ -32,9 +32,12 @@ import cn.edu.tsinghua.iginx.metadata.storage.IMetaStorage;
 import cn.edu.tsinghua.iginx.metadata.storage.etcd.ETCDMetaStorage;
 import cn.edu.tsinghua.iginx.metadata.storage.zk.ZooKeeperMetaStorage;
 import cn.edu.tsinghua.iginx.policy.simple.TimeSeriesCalDO;
+import cn.edu.tsinghua.iginx.protocol.NetworkException;
+import cn.edu.tsinghua.iginx.protocol.SyncProtocol;
 import cn.edu.tsinghua.iginx.sql.statement.InsertStatement;
 import cn.edu.tsinghua.iginx.thrift.AuthType;
 import cn.edu.tsinghua.iginx.thrift.Status;
+import cn.edu.tsinghua.iginx.thrift.StorageUnit;
 import cn.edu.tsinghua.iginx.thrift.UserType;
 import cn.edu.tsinghua.iginx.utils.Pair;
 import cn.edu.tsinghua.iginx.utils.SnowFlakeUtils;
@@ -360,6 +363,80 @@ public class DefaultMetaManager implements IMetaManager {
     }
 
     @Override
+    public Map<String, String> startMigrationStorageUnits(Map<String, Long> migrationMap) {
+        try {
+            Map<String, String> migrationStorageUnitMap = new HashMap<>();
+            storage.lockStorageUnit();
+            for (String storageUnitId: migrationMap.keySet()) {
+                String newStorageUnitId = storage.addStorageUnit();
+                StorageUnitMeta storageUnit = getStorageUnit(storageUnitId);
+                StorageUnitMeta clonedStorageUnit = storageUnit.clone();
+                StorageUnitMeta newStorageUnit = clonedStorageUnit.migrationStorageUnitMeta(newStorageUnitId, id, migrationMap.get(storageUnitId));
+                // 更新新的 storage unit
+                cache.updateStorageUnit(newStorageUnit);
+                for (StorageUnitHook hook : storageUnitHooks) {
+                    hook.onChange(null, newStorageUnit);
+                }
+                storage.updateStorageUnit(newStorageUnit);
+                // 更新旧的 storage unit
+                cache.updateStorageUnit(clonedStorageUnit);
+                for (StorageUnitHook hook : storageUnitHooks) {
+                    hook.onChange(storageUnit, clonedStorageUnit);
+                }
+                storage.updateStorageUnit(clonedStorageUnit);
+                migrationStorageUnitMap.put(storageUnitId, newStorageUnitId);
+            }
+            return migrationStorageUnitMap;
+        } catch (MetaStorageException e) {
+            logger.error("migration storage unit error: ", e);
+        } finally {
+            try {
+                storage.releaseStorageUnit();
+            } catch (MetaStorageException e) {
+                logger.error("release storage unit lock error: ", e);
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public boolean finishMigrationStorageUnit(String storageUnitId) {
+        try {
+            storage.lockStorageUnit();
+            StorageUnitMeta sourceStorageUnit = getStorageUnit(storageUnitId);
+            StorageUnitMeta clonedSourceStorageUnit = sourceStorageUnit.clone();
+            clonedSourceStorageUnit.setState(StorageUnitState.DISCARD);
+
+            StorageUnitMeta targetStorageUnit = getStorageUnit(sourceStorageUnit.getMigrationTo());
+            StorageUnitMeta clonedTargetStorageUnit = targetStorageUnit.clone();
+            clonedTargetStorageUnit.setState(StorageUnitState.NORMAL);
+
+            cache.updateStorageUnit(clonedTargetStorageUnit);
+            for (StorageUnitHook hook : storageUnitHooks) {
+                hook.onChange(targetStorageUnit, clonedTargetStorageUnit);
+            }
+            storage.updateStorageUnit(clonedTargetStorageUnit);
+            // 更新旧的 storage unit
+            cache.updateStorageUnit(clonedSourceStorageUnit);
+            for (StorageUnitHook hook : storageUnitHooks) {
+                hook.onChange(sourceStorageUnit, clonedSourceStorageUnit);
+            }
+            storage.updateStorageUnit(clonedSourceStorageUnit);
+
+            return true;
+        } catch (MetaStorageException e) {
+            logger.error("migration storage unit error: ", e);
+        } finally {
+            try {
+                storage.releaseStorageUnit();
+            } catch (MetaStorageException e) {
+                logger.error("release storage unit lock error: ", e);
+            }
+        }
+        return false;
+    }
+
+    @Override
     public List<StorageEngineMeta> getStorageEngineList() {
         return new ArrayList<>(cache.getStorageEngineList());
     }
@@ -397,6 +474,11 @@ public class DefaultMetaManager implements IMetaManager {
     @Override
     public List<IginxMeta> getIginxList() {
         return new ArrayList<>(cache.getIginxList());
+    }
+
+    @Override
+    public int getIginxClusterSize() {
+        return cache.getIginxList().size();
     }
 
     @Override
@@ -1285,5 +1367,14 @@ public class DefaultMetaManager implements IMetaManager {
         } catch (MetaStorageException e) {
             logger.error("encounter error when submitting max active time: ", e);
         }
+    }
+
+    public void initProtocol(String category) throws NetworkException {
+        storage.initProtocol(category);
+    }
+
+    @Override
+    public SyncProtocol getProtocol(String category) {
+        return storage.getProtocol(category);
     }
 }

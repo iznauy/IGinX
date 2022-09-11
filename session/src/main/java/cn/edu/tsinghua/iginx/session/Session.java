@@ -1234,4 +1234,22 @@ public class Session {
             throw new SessionException(e);
         }
     }
+
+    public void removeStorage(long id) throws SessionException, ExecutionException {
+        RemoveStorageEngineReq req = new RemoveStorageEngineReq(sessionId, id, true);
+        try {
+            Status status;
+            do {
+                lock.readLock().lock();
+                try {
+                    status = client.removeStorageEngine(req);
+                } finally {
+                    lock.readLock().unlock();
+                }
+            } while(checkRedirect(status));
+            RpcUtils.verifySuccess(status);
+        } catch (TException e) {
+            throw new SessionException(e);
+        }
+    }
 }
