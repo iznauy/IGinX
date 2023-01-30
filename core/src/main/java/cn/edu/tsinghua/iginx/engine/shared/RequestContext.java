@@ -36,6 +36,8 @@ public class RequestContext {
 
     private boolean useStream;
 
+    private boolean recover;
+
     private void init() {
         this.id = SnowFlakeUtils.getInstance().nextId();
         this.startTime = System.currentTimeMillis();
@@ -70,6 +72,20 @@ public class RequestContext {
         this.fromSQL = true;
         this.sqlType = SqlType.Unknown;
         this.useStream = useStream;
+        this.recover = false;
+    }
+
+    public RequestContext(long sessionId, long queryId, String sql, boolean useStream) {
+        this.sessionId = sessionId;
+        this.id = queryId;
+        this.sql = sql;
+        this.fromSQL = true;
+        this.sqlType = SqlType.Unknown;
+        this.useStream = useStream;
+        this.recover = true;
+
+        this.startTime = System.currentTimeMillis();
+        this.extraParams = new HashMap<>();
     }
 
     public Object getExtraParam(String key) {

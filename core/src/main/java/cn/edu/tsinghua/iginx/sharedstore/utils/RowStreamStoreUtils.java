@@ -68,5 +68,9 @@ public class RowStreamStoreUtils {
         return table;
     }
 
+    public static String encodeKey(long queryId, int sequence) {
+        return String.format("p_%d_%d", queryId, sequence);
+    }
+
 
 }
