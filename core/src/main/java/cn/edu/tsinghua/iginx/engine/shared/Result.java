@@ -153,72 +153,6 @@ public class Result {
         return resp;
     }
 
-    public ExecuteStatementResp getExecuteStatementResp(int fetchSize) {
-        ExecuteStatementResp resp = new ExecuteStatementResp(status, sqlType);
-        if (status != RpcUtils.SUCCESS) {
-            return resp;
-        }
-        resp.setQueryId(queryId);
-        try {
-            List<String> paths = new ArrayList<>();
-            List<Map<String, String>> tagsList = new ArrayList<>();
-            List<DataType> types = new ArrayList<>();
-
-            Header header = resultStream.getHeader();
-
-            if (header.hasKey()) {
-                paths.add(Field.KEY.getFullName());
-                types.add(Field.KEY.getType());
-                tagsList.add(new HashMap<>());
-            }
-
-            resultStream.getHeader().getFields().forEach(field -> {
-                paths.add(field.getFullName());
-                types.add(field.getType());
-                if (field.getTags() == null) {
-                    tagsList.add(new HashMap<>());
-                } else {
-                    tagsList.add(field.getTags());
-                }
-            });
-
-            List<ByteBuffer> valuesList = new ArrayList<>();
-            List<ByteBuffer> bitmapList = new ArrayList<>();
-
-            int cnt = 0;
-            boolean hasTimestamp = resultStream.getHeader().hasKey();
-            while (resultStream.hasNext() && cnt < fetchSize) {
-                Row row = resultStream.next();
-
-                Object[] rawValues = row.getValues();
-                Object[] rowValues = rawValues;
-                if (hasTimestamp) {
-                    rowValues = new Object[rawValues.length + 1];
-                    rowValues[0] = row.getKey();
-                    System.arraycopy(rawValues, 0, rowValues, 1, rawValues.length);
-                }
-                valuesList.add(ByteUtils.getRowByteBuffer(rowValues, types));
-
-                Bitmap bitmap = new Bitmap(rowValues.length);
-                for (int i = 0; i < rowValues.length; i++) {
-                    if (rowValues[i] != null) {
-                        bitmap.mark(i);
-                    }
-                }
-                bitmapList.add(ByteBuffer.wrap(bitmap.getBytes()));
-                cnt++;
-            }
-            resp.setColumns(paths);
-            resp.setTagsList(tagsList);
-            resp.setDataTypeList(types);
-            resp.setQueryDataSet(new QueryDataSetV2(valuesList, bitmapList));
-        } catch (PhysicalException e) {
-            logger.error("unexpected error when load row stream: ", e);
-            resp.setStatus(RpcUtils.FAILURE);
-        }
-        return resp;
-    }
-
     public FetchResultsResp fetch(int fetchSize) {
         FetchResultsResp resp = new FetchResultsResp(status, false);
 
@@ -263,6 +197,9 @@ public class Result {
                 cnt++;
             }
             resp.setHasMoreResults(resultStream.hasNext());
+            resp.setColumns(paths);
+            resp.setTagsList(tagsList);
+            resp.setDataTypeList(types);
             resp.setQueryDataSet(new QueryDataSetV2(valuesList, bitmapList));
         } catch (PhysicalException e) {
             logger.error("unexpected error when load row stream: ", e);

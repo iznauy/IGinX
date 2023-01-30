@@ -1047,9 +1047,13 @@ public class Session {
         return executeQuery(statement, Integer.MAX_VALUE);
     }
 
-    public QueryDataSet executeQuery(String statement, int fetchSize) throws SessionException, ExecutionException  {
+    public QueryDataSet executeQuery(long queryId, String statement) throws SessionException, ExecutionException {
+        return executeQuery(queryId, statement, Integer.MAX_VALUE);
+    }
+
+    public QueryDataSet executeQuery(long queryId, String statement, int fetchSize) throws SessionException, ExecutionException {
         ExecuteStatementReq req = new ExecuteStatementReq(sessionId, statement);
-        req.setFetchSize(fetchSize);
+        req.setQueryId(queryId);
         ExecuteStatementResp resp;
         try {
             do {
@@ -1065,16 +1069,14 @@ public class Session {
             e.printStackTrace();
             throw new SessionException(e);
         }
-
-        long queryId = resp.getQueryId();
-        List<String> columns = resp.getColumns();
-        List<DataType> dataTypes = resp.getDataTypeList();
-        QueryDataSetV2 dataSetV2 = resp.getQueryDataSet();
-
-        return new QueryDataSet(this, queryId, columns, dataTypes, fetchSize, dataSetV2.valuesList, dataSetV2.bitmapList);
+        return new QueryDataSet(this, resp.getQueryId(), fetchSize);
     }
 
-    Pair<QueryDataSetV2, Boolean> fetchResult(long queryId, int fetchSize) throws SessionException, ExecutionException {
+    public QueryDataSet executeQuery(String statement, int fetchSize) throws SessionException, ExecutionException  {
+        return executeQuery(0L, statement, fetchSize);
+    }
+
+    FetchResultsResp fetchResult(long queryId, int fetchSize) throws SessionException, ExecutionException {
         FetchResultsReq req = new FetchResultsReq(sessionId, queryId);
         req.setFetchSize(fetchSize);
         FetchResultsResp resp;
@@ -1094,9 +1096,8 @@ public class Session {
             throw new SessionException(e);
         }
 
-        return new Pair<>(resp.getQueryDataSet(), resp.isHasMoreResults());
+        return resp;
     }
-
 
     void closeQuery(long queryId) throws SessionException, ExecutionException {
         CloseStatementReq req = new CloseStatementReq(sessionId, queryId);

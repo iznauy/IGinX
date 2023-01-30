@@ -26,6 +26,7 @@ import cn.edu.tsinghua.iginx.engine.physical.optimizer.PhysicalOptimizerManager;
 import cn.edu.tsinghua.iginx.engine.physical.storage.StorageManager;
 import cn.edu.tsinghua.iginx.engine.physical.storage.execute.StoragePhysicalTaskExecutor;
 import cn.edu.tsinghua.iginx.engine.physical.task.*;
+import cn.edu.tsinghua.iginx.engine.shared.RequestContext;
 import cn.edu.tsinghua.iginx.engine.shared.constraint.ConstraintManager;
 import cn.edu.tsinghua.iginx.engine.shared.data.read.Row;
 import cn.edu.tsinghua.iginx.engine.shared.data.read.RowStream;
@@ -83,7 +84,7 @@ public class PhysicalEngineImpl implements PhysicalEngine {
     }
 
     @Override
-    public RowStream execute(Operator root) throws PhysicalException {
+    public RowStream execute(RequestContext context, Operator root) throws PhysicalException {
         if (OperatorType.isGlobalOperator(root.getType())) { // 全局任务临时兼容逻辑
             // 迁移任务单独处理
             if (root.getType() == OperatorType.Migration) {

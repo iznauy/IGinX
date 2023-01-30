@@ -32,7 +32,7 @@ public final class Header {
 
     private final Map<String, Integer> indexMap;
 
-    private final Map<String, List<Integer>> patternIndexCache;
+    private final transient Map<String, List<Integer>> patternIndexCache;
 
     public Header(List<Field> fields) {
         this(null, fields);

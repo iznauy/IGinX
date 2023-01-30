@@ -18,11 +18,11 @@ public class RequestContext {
 
     private long endTime;
 
-    private long sessionId;
+    private transient long sessionId;
 
     private Map<String, Object> extraParams;
 
-    private Status status;
+    private transient Status status;
 
     private String sql;
 
@@ -30,9 +30,9 @@ public class RequestContext {
 
     private SqlType sqlType;
 
-    private Statement statement;
+    private transient Statement statement;
 
-    private Result result;
+    private transient Result result;
 
     private boolean useStream;
 
