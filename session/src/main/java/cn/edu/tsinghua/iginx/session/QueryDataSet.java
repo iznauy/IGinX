@@ -136,4 +136,8 @@ public class QueryDataSet {
         }
         return dataTypeList;
     }
+
+    public long getQueryId() {
+        return queryId;
+    }
 }

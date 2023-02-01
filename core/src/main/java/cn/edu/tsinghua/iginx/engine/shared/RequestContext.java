@@ -8,6 +8,7 @@ import lombok.Data;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 
 @Data
 public class RequestContext {
@@ -37,6 +38,10 @@ public class RequestContext {
     private boolean useStream;
 
     private boolean recover;
+
+    private boolean enableFaultTolerance;
+
+    private transient CountDownLatch resultLatch = new CountDownLatch(1);
 
     private void init() {
         this.id = SnowFlakeUtils.getInstance().nextId();
@@ -105,6 +110,16 @@ public class RequestContext {
         if (this.result != null) {
             this.result.setQueryId(id);
         }
+        this.resultLatch.countDown();
         this.endTime = System.currentTimeMillis();
+    }
+
+    public Result takeResult() {
+        try {
+            resultLatch.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        return this.result;
     }
 }

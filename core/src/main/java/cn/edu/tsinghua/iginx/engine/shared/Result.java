@@ -160,15 +160,20 @@ public class Result {
             return resp;
         }
         try {
+            List<String> columns = new ArrayList<>();
             List<DataType> types = new ArrayList<>();
 
             Header header = resultStream.getHeader();
 
             if (header.hasKey()) {
                 types.add(Field.KEY.getType());
+                columns.add(Field.KEY.getName());
             }
 
-            resultStream.getHeader().getFields().forEach(field -> types.add(field.getType()));
+            resultStream.getHeader().getFields().forEach(field -> {
+                types.add(field.getType());
+                columns.add(field.getFullName());
+            });
 
             List<ByteBuffer> valuesList = new ArrayList<>();
             List<ByteBuffer> bitmapList = new ArrayList<>();
@@ -197,7 +202,7 @@ public class Result {
                 cnt++;
             }
             resp.setHasMoreResults(resultStream.hasNext());
-            resp.setColumns(paths);
+            resp.setColumns(columns);
             resp.setTagsList(tagsList);
             resp.setDataTypeList(types);
             resp.setQueryDataSet(new QueryDataSetV2(valuesList, bitmapList));

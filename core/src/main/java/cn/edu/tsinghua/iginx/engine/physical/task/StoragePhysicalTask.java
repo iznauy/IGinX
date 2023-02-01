@@ -18,6 +18,7 @@
  */
 package cn.edu.tsinghua.iginx.engine.physical.task;
 
+import cn.edu.tsinghua.iginx.engine.shared.RequestContext;
 import cn.edu.tsinghua.iginx.engine.shared.operator.Operator;
 import cn.edu.tsinghua.iginx.engine.shared.operator.UnaryOperator;
 import cn.edu.tsinghua.iginx.engine.shared.source.FragmentSource;
@@ -34,16 +35,16 @@ public class StoragePhysicalTask extends AbstractPhysicalTask {
     private long storage;
     private boolean dummyStorageUnit;
 
-    public StoragePhysicalTask(List<Operator> operators) {
-        this(operators, ((FragmentSource) ((UnaryOperator) operators.get(0)).getSource()).getFragment(), true, false);
+    public StoragePhysicalTask(List<Operator> operators, RequestContext context) {
+        this(operators, context, ((FragmentSource) ((UnaryOperator) operators.get(0)).getSource()).getFragment(), true, false);
     }
 
-    public StoragePhysicalTask(List<Operator> operators, boolean sync, boolean needBroadcasting) {
-        this(operators, ((FragmentSource) ((UnaryOperator) operators.get(0)).getSource()).getFragment(), sync, needBroadcasting);
+    public StoragePhysicalTask(List<Operator> operators, RequestContext context, boolean sync, boolean needBroadcasting) {
+        this(operators, context, ((FragmentSource) ((UnaryOperator) operators.get(0)).getSource()).getFragment(), sync, needBroadcasting);
     }
 
-    public StoragePhysicalTask(List<Operator> operators, FragmentMeta targetFragment, boolean sync, boolean needBroadcasting) {
-        super(TaskType.Storage, operators);
+    public StoragePhysicalTask(List<Operator> operators, RequestContext context, FragmentMeta targetFragment, boolean sync, boolean needBroadcasting) {
+        super(TaskType.Storage, operators, context);
         this.targetFragment = targetFragment;
         this.sync = sync;
         this.needBroadcasting = needBroadcasting;
@@ -92,5 +93,10 @@ public class StoragePhysicalTask extends AbstractPhysicalTask {
             ", storageUnit='" + storageUnit + '\'' +
             ", storage=" + storage +
             '}';
+    }
+
+    @Override
+    public boolean hasParentTask() {
+        return false;
     }
 }

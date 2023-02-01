@@ -30,6 +30,7 @@ import cn.edu.tsinghua.iginx.engine.shared.operator.type.OperatorType;
 import cn.edu.tsinghua.iginx.engine.shared.source.OperatorSource;
 import cn.edu.tsinghua.iginx.engine.shared.source.Source;
 import cn.edu.tsinghua.iginx.engine.shared.source.SourceType;
+import cn.edu.tsinghua.iginx.sharedstore.utils.RowStreamStoreUtils;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -46,10 +47,43 @@ public class NaivePhysicalOptimizer implements PhysicalOptimizer {
         if (root == null) {
             return null;
         }
-        if (context.isRecover()) {
+        if (context.isEnableFaultTolerance()) {
             markSequence(root, 1);
+            if (context.isRecover()) {
+                root = trimOperatorTreeBySharedStorage(context, root);
+            }
         }
         return constructTask(context, root);
+    }
+
+    // 改写操作符树，如果操作符输出结果已经被缓存了，则用 Load 节点替换以该节点为跟的子树
+    private Operator trimOperatorTreeBySharedStorage(RequestContext ctx, Operator root) {
+        String key = RowStreamStoreUtils.encodeKey(ctx.getId(), root.getSequence());
+        if (RowStreamStoreUtils.checkRowStream(key)) {
+            return new Load(key);
+        }
+        if (OperatorType.isUnaryOperator(root.getType())) {
+            Source source = ((UnaryOperator) root).getSource();
+            if (source.getType() == SourceType.Fragment) {
+                return root;
+            }
+            OperatorSource operatorSource = (OperatorSource) source;
+            operatorSource.setOperator(trimOperatorTreeBySharedStorage(ctx, operatorSource.getOperator()));
+        } else if (OperatorType.isBinaryOperator(root.getType())) {
+            BinaryOperator binaryOperator = (BinaryOperator) root;
+            OperatorSource sourceA = (OperatorSource) binaryOperator.getSourceA();
+            OperatorSource sourceB = (OperatorSource) binaryOperator.getSourceB();
+            sourceA.setOperator(trimOperatorTreeBySharedStorage(ctx, sourceA.getOperator()));
+            sourceB.setOperator(trimOperatorTreeBySharedStorage(ctx, sourceB.getOperator()));
+        } else {
+            MultipleOperator multipleOperator = (MultipleOperator) root;
+            List<Source> sources = multipleOperator.getSources();
+            for (Source source : sources) {
+                OperatorSource operatorSource = (OperatorSource) source;
+                operatorSource.setOperator(trimOperatorTreeBySharedStorage(ctx, operatorSource.getOperator()));
+            }
+        }
+        return root;
     }
 
     private int markSequence(Operator operator, int sequence) { // sequence 为标记当前节点的编号
@@ -94,6 +128,7 @@ public class NaivePhysicalOptimizer implements PhysicalOptimizer {
 
     }
 
+    // 自顶向下构建计划
     private PhysicalTask constructTask(RequestContext ctx, Operator operator) {
         if (OperatorType.isUnaryOperator(operator.getType())) {
             UnaryOperator unaryOperator = (UnaryOperator) operator;
@@ -102,25 +137,30 @@ public class NaivePhysicalOptimizer implements PhysicalOptimizer {
                 List<Operator> operators = new ArrayList<>();
                 operators.add(operator);
                 if (OperatorType.isNeedBroadcasting(operator.getType())) {
-                    return new StoragePhysicalTask(operators, true, true);
+                    return new StoragePhysicalTask(operators, ctx, true, true);
                 } else {
-                    return new StoragePhysicalTask(operators);
+                    return new StoragePhysicalTask(operators, ctx);
                 }
-            } else { // 构建内存中的计划
-                OperatorSource operatorSource = (OperatorSource) source;
-                Operator sourceOperator = operatorSource.getOperator();
-                PhysicalTask sourceTask = constructTask(ctx, operatorSource.getOperator());
-                if (ConfigDescriptor.getInstance().getConfig().isEnablePushDown() && sourceTask instanceof StoragePhysicalTask
-                        && sourceOperator.getType() == OperatorType.Project
-                        && ((Project) sourceOperator).getTagFilter() == null
-                        && ((UnaryOperator) sourceOperator).getSource().getType() == SourceType.Fragment
-                    && operator.getType() == OperatorType.Select && ((Select) operator).getTagFilter() == null) {
-                    sourceTask.getOperators().add(operator);
-                    return sourceTask;
-                }
+            } else if (source.getType() == SourceType.SharedStore) {
+                // 当前的操作符必定为 load，此类任务虽然是内存任务，但是没有父节点
                 List<Operator> operators = new ArrayList<>();
                 operators.add(operator);
-                PhysicalTask task = new UnaryMemoryPhysicalTask(operators, sourceTask);
+                return new UnaryMemoryPhysicalTask(operators, ctx, null);
+            } else { // 构建内存中的计划
+                OperatorSource operatorSource = (OperatorSource) source;
+//                Operator sourceOperator = operatorSource.getOperator();
+                PhysicalTask sourceTask = constructTask(ctx, operatorSource.getOperator());
+//                if (ConfigDescriptor.getInstance().getConfig().isEnablePushDown() && sourceTask instanceof StoragePhysicalTask
+//                        && sourceOperator.getType() == OperatorType.Project
+//                        && ((Project) sourceOperator).getTagFilter() == null
+//                        && ((UnaryOperator) sourceOperator).getSource().getType() == SourceType.Fragment
+//                    && operator.getType() == OperatorType.Select && ((Select) operator).getTagFilter() == null) {
+//                    sourceTask.getOperators().add(operator);
+//                    return sourceTask;
+//                }
+                List<Operator> operators = new ArrayList<>();
+                operators.add(operator);
+                PhysicalTask task = new UnaryMemoryPhysicalTask(operators, ctx, sourceTask);
                 sourceTask.setFollowerTask(task);
                 return task;
             }
@@ -132,7 +172,7 @@ public class NaivePhysicalOptimizer implements PhysicalOptimizer {
             PhysicalTask sourceTaskB = constructTask(ctx, sourceB.getOperator());
             List<Operator> operators = new ArrayList<>();
             operators.add(operator);
-            PhysicalTask task = new BinaryMemoryPhysicalTask(operators, sourceTaskA, sourceTaskB);
+            PhysicalTask task = new BinaryMemoryPhysicalTask(operators, ctx, sourceTaskA, sourceTaskB);
             sourceTaskA.setFollowerTask(task);
             sourceTaskB.setFollowerTask(task);
             return task;
@@ -147,7 +187,7 @@ public class NaivePhysicalOptimizer implements PhysicalOptimizer {
             }
             List<Operator> operators = new ArrayList<>();
             operators.add(operator);
-            PhysicalTask task = new MultipleMemoryPhysicalTask(operators, parentTasks);
+            PhysicalTask task = new MultipleMemoryPhysicalTask(operators, ctx, parentTasks);
             for (PhysicalTask parentTask : parentTasks) {
                 parentTask.setFollowerTask(task);
             }

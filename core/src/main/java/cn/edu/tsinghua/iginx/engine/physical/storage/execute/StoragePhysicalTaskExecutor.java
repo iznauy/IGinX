@@ -22,6 +22,7 @@ import cn.edu.tsinghua.iginx.conf.ConfigDescriptor;
 import cn.edu.tsinghua.iginx.engine.physical.exception.PhysicalException;
 import cn.edu.tsinghua.iginx.engine.physical.exception.TooManyPhysicalTasksException;
 import cn.edu.tsinghua.iginx.engine.physical.exception.UnexpectedOperatorException;
+import cn.edu.tsinghua.iginx.engine.physical.fault.DefaultFaultTolerancePolicy;
 import cn.edu.tsinghua.iginx.engine.physical.memory.MemoryPhysicalTaskDispatcher;
 import cn.edu.tsinghua.iginx.engine.physical.optimizer.ReplicaDispatcher;
 import cn.edu.tsinghua.iginx.engine.physical.storage.IStorage;
@@ -112,12 +113,21 @@ public class StoragePhysicalTaskExecutor {
                             }
                             pair.v.submit(() -> {
                                 TaskExecuteResult result = null;
+                                long startTime = System.currentTimeMillis();
                                 try {
                                     result = pair.k.execute(task);
                                 } catch (Exception e) {
                                     logger.error("execute task error: " + e);
                                     result = new TaskExecuteResult(new PhysicalException(e));
                                 }
+                                long span = System.currentTimeMillis() - startTime;
+                                if (result.getRowStream() != null) {
+                                    task.setSpan(span);
+                                    if (task.getContext().isEnableFaultTolerance()) {
+                                        DefaultFaultTolerancePolicy.getInstance().persistence(task, result);
+                                    }
+                                }
+
                                 task.setResult(result);
                                 if (task.getFollowerTask() != null && task.isSync()) { // 只有同步任务才会影响后续任务的执行
                                     MemoryPhysicalTask followerTask = (MemoryPhysicalTask) task.getFollowerTask();
@@ -139,7 +149,7 @@ public class StoragePhysicalTaskExecutor {
                                             if (replicaId.equals(task.getStorageUnit())) {
                                                 continue;
                                             }
-                                            StoragePhysicalTask replicaTask = new StoragePhysicalTask(task.getOperators(), false, false);
+                                            StoragePhysicalTask replicaTask = new StoragePhysicalTask(task.getOperators(), task.getContext(), false, false);
                                             storageTaskQueues.get(replicaId).addTask(replicaTask);
                                             logger.info("broadcasting task " + task + " to " + replicaId);
                                         }

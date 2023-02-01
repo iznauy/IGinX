@@ -7,7 +7,11 @@ import cn.edu.tsinghua.iginx.engine.shared.data.read.Row;
 import cn.edu.tsinghua.iginx.engine.shared.data.read.RowStream;
 import cn.edu.tsinghua.iginx.sharedstore.SharedStore;
 import cn.edu.tsinghua.iginx.sharedstore.redis.RedisStore;
+import cn.edu.tsinghua.iginx.thrift.DataType;
+import com.alibaba.fastjson.serializer.SerializeFilter;
+import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,18 +58,34 @@ public class RowStreamStoreUtils {
         }
     }
 
-    public static RowStream loadRowStream(String key) throws IllegalArgumentException {
+    public static RowStream loadRowStream(String key) {
         byte[] bytes = sharedStore.get(key.getBytes(StandardCharsets.UTF_8));
         if (bytes == null) {
-            throw new IllegalArgumentException("row stream for key: " + key + " is not exists.");
+            logger.info("row stream for key: " + key + " is not exists.");
+            return null;
         }
         logger.info("[loadRowStream] load key: " + key + ", store value: " + new String(bytes));
         Table table = JSON.parseObject(bytes, Table.class);
         List<Row> rows = table.getRows();
         for (Row row: rows) {
             row.setHeader(table.getHeader());
+            Object[] values = row.getValues();
+            for (int i = 0; i < values.length; i++) {
+                if (values[i] == null) {
+                    continue;
+                }
+                if (row.getField(i).getType() == DataType.LONG) {
+                    values[i] = ((Number) values[i]).longValue();
+                } else if (row.getField(i).getType() == DataType.DOUBLE) {
+                    values[i] = ((Number) values[i]).doubleValue();
+                }
+            }
         }
         return table;
+    }
+
+    public static boolean checkRowStream(String key) {
+        return sharedStore.exists(key.getBytes(StandardCharsets.UTF_8));
     }
 
     public static String encodeKey(long queryId, int sequence) {

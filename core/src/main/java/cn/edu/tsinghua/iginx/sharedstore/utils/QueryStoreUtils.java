@@ -4,10 +4,14 @@ import cn.edu.tsinghua.iginx.engine.shared.RequestContext;
 import cn.edu.tsinghua.iginx.sharedstore.SharedStore;
 import cn.edu.tsinghua.iginx.sharedstore.redis.RedisStore;
 import com.alibaba.fastjson2.JSON;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 
 public class QueryStoreUtils {
+
+    private static final Logger logger = LoggerFactory.getLogger(QueryStoreUtils.class);
 
     private static final SharedStore sharedStore = RedisStore.getInstance();
 
@@ -17,10 +21,11 @@ public class QueryStoreUtils {
         return sharedStore.put(Long.toString(queryId).getBytes(StandardCharsets.UTF_8), bytes);
     }
 
-    public static RequestContext loadQueryContext(long queryId) throws IllegalArgumentException {
+    public static RequestContext loadQueryContext(long queryId) {
         byte[] bytes = sharedStore.get(Long.toString(queryId).getBytes(StandardCharsets.UTF_8));
         if (bytes == null) {
-            throw new IllegalArgumentException("query context for key: " + queryId + " is not exists.");
+            logger.info("query context for key: " + queryId + " is not exists.");
+            return null;
         }
         return JSON.parseObject(bytes, RequestContext.class);
     }
