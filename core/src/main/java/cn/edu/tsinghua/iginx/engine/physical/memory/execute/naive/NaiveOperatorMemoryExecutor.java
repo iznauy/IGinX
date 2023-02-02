@@ -1546,7 +1546,7 @@ public class NaiveOperatorMemoryExecutor implements OperatorMemoryExecutor {
         }
     }
 
-    private RowStream executeUnion(Union union, Table tableA, Table tableB) throws PhysicalException {
+    public Table executeUnion(Union union, Table tableA, Table tableB) throws PhysicalException {
         // 检查时间是否一致
         Header headerA = tableA.getHeader();
         Header headerB = tableB.getHeader();

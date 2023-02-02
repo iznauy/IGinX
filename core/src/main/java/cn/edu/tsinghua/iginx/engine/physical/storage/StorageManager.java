@@ -35,7 +35,7 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-public class StorageManager {
+public class StorageManager implements IStorageManager {
 
     private static final Logger logger = LoggerFactory.getLogger(StorageManager.class);
 
@@ -161,6 +161,11 @@ public class StorageManager {
 
     public Pair<IStorage, ThreadPoolExecutor> getStorage(long id) {
         return storageMap.get(id);
+    }
+
+    @Override
+    public IStorage getIStorage(long id) {
+        return storageMap.get(id).k;
     }
 
     public boolean addStorage(StorageEngineMeta meta) {

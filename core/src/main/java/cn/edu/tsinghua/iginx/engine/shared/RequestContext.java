@@ -54,6 +54,10 @@ public class RequestContext {
         this.sessionId = sessionId;
     }
 
+    public RequestContext() {
+        this.extraParams = new HashMap<>();
+    }
+
     public RequestContext(long sessionId, Statement statement) {
         this(sessionId, statement, false);
     }

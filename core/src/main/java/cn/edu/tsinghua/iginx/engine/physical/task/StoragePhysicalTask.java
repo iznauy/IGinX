@@ -20,7 +20,9 @@ package cn.edu.tsinghua.iginx.engine.physical.task;
 
 import cn.edu.tsinghua.iginx.engine.shared.RequestContext;
 import cn.edu.tsinghua.iginx.engine.shared.operator.Operator;
+import cn.edu.tsinghua.iginx.engine.shared.operator.Project;
 import cn.edu.tsinghua.iginx.engine.shared.operator.UnaryOperator;
+import cn.edu.tsinghua.iginx.engine.shared.operator.type.OperatorType;
 import cn.edu.tsinghua.iginx.engine.shared.source.FragmentSource;
 import cn.edu.tsinghua.iginx.metadata.entity.FragmentMeta;
 
@@ -34,6 +36,16 @@ public class StoragePhysicalTask extends AbstractPhysicalTask {
     private String storageUnit;
     private long storage;
     private boolean dummyStorageUnit;
+
+    private String[] backupStorageUnits;
+
+    private long[] backupStorages;
+
+    private int nextIndex;
+
+    private boolean skipData = false;
+
+    private long lastTimestamp = 0L;
 
     public StoragePhysicalTask(List<Operator> operators, RequestContext context) {
         this(operators, context, ((FragmentSource) ((UnaryOperator) operators.get(0)).getSource()).getFragment(), true, false);
@@ -50,12 +62,23 @@ public class StoragePhysicalTask extends AbstractPhysicalTask {
         this.needBroadcasting = needBroadcasting;
     }
 
+    public StoragePhysicalTask(List<Operator> operators, RequestContext context, boolean forTest) {
+        super(TaskType.Storage, operators, context);
+        this.targetFragment = null;
+        this.sync = true;
+        this.needBroadcasting = false;
+    }
+
     public FragmentMeta getTargetFragment() {
         return targetFragment;
     }
 
     public String getStorageUnit() {
         return storageUnit;
+    }
+
+    public long getStorage() {
+        return storage;
     }
 
     public void setStorageUnit(String storageUnit) {
@@ -70,14 +93,6 @@ public class StoragePhysicalTask extends AbstractPhysicalTask {
         this.dummyStorageUnit = dummyStorageUnit;
     }
 
-    public long getStorage() {
-        return storage;
-    }
-
-    public void setStorage(long storage) {
-        this.storage = storage;
-    }
-
     public boolean isSync() {
         return sync;
     }
@@ -86,12 +101,45 @@ public class StoragePhysicalTask extends AbstractPhysicalTask {
         return needBroadcasting;
     }
 
+    public void setBackup(long[] backupStorages, String[] backupStorageUnits) {
+        this.backupStorages = backupStorages;
+        this.backupStorageUnits = backupStorageUnits;
+    }
+
+    public boolean canBackUp() {
+        return getOperators().get(0).getType() == OperatorType.Project;
+    }
+
+    public boolean hasBackup() {
+        return canBackUp() && backupStorageUnits != null && nextIndex < backupStorageUnits.length;
+    }
+
+    public void backUp() {
+        backUp(0L);
+    }
+
+    public void backUp(long lastTimestamp) {
+        this.lastTimestamp = lastTimestamp;
+        if (lastTimestamp > 0) {
+            this.skipData = true;
+        }
+        storage = backupStorages[nextIndex];
+        storageUnit = backupStorageUnits[nextIndex];
+        nextIndex++;
+    }
+    public boolean isSkipData() {
+        return skipData;
+    }
+
+    public long getLastTimestamp() {
+        return lastTimestamp;
+    }
+
     @Override
     public String toString() {
         return "StoragePhysicalTask{" +
             "targetFragment=" + targetFragment +
-            ", storageUnit='" + storageUnit + '\'' +
-            ", storage=" + storage +
+            ", storageUnit='" + storageUnit +
             '}';
     }
 
