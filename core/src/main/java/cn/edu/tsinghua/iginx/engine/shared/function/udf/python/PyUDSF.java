@@ -1,19 +1,22 @@
 package cn.edu.tsinghua.iginx.engine.shared.function.udf.python;
 
+import cn.edu.tsinghua.iginx.constant.GlobalConstant;
 import cn.edu.tsinghua.iginx.engine.physical.memory.execute.Table;
 import cn.edu.tsinghua.iginx.engine.shared.data.Value;
 import cn.edu.tsinghua.iginx.engine.shared.data.read.Field;
 import cn.edu.tsinghua.iginx.engine.shared.data.read.Header;
 import cn.edu.tsinghua.iginx.engine.shared.data.read.Row;
 import cn.edu.tsinghua.iginx.engine.shared.data.read.RowStream;
-import cn.edu.tsinghua.iginx.engine.shared.function.FunctionType;
-import cn.edu.tsinghua.iginx.engine.shared.function.MappingType;
+import cn.edu.tsinghua.iginx.engine.shared.function.*;
+import cn.edu.tsinghua.iginx.engine.shared.function.tsbs.Transposition;
 import cn.edu.tsinghua.iginx.engine.shared.function.udf.UDSF;
 import cn.edu.tsinghua.iginx.engine.shared.function.udf.utils.CheckUtils;
 import cn.edu.tsinghua.iginx.engine.shared.function.udf.utils.RowUtils;
 import cn.edu.tsinghua.iginx.engine.shared.function.udf.utils.TypeUtils;
 import cn.edu.tsinghua.iginx.utils.StringUtils;
 import java.util.concurrent.BlockingQueue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import pemja.core.PythonInterpreter;
 
 import java.util.*;
@@ -23,15 +26,23 @@ import static cn.edu.tsinghua.iginx.engine.shared.Constants.*;
 
 public class PyUDSF implements UDSF {
 
+    private static final Logger logger = LoggerFactory.getLogger(PyUDSF.class);
+
     private static final String PY_UDSF = "py_udsf";
 
     private final BlockingQueue<PythonInterpreter> interpreters;
 
     private final String funcName;
 
+    private MappingFunction function = null;
+
     public PyUDSF(BlockingQueue<PythonInterpreter> interpreters, String funcName) {
         this.interpreters = interpreters;
         this.funcName = funcName;
+        logger.info("[FaultToleranceQuery][Debug][UDF] load udf: {}", funcName);
+        if (funcName.equals("transposition")) {
+            this.function = Transposition.getInstance();
+        }
     }
 
     @Override
@@ -51,6 +62,9 @@ public class PyUDSF implements UDSF {
 
     @Override
     public RowStream transform(RowStream rows, Map<String, Value> params) throws Exception {
+        if (function != null) {
+            return function.transform(rows, params);
+        }
         if (!CheckUtils.isLegal(params)) {
             throw new IllegalArgumentException("unexpected params for PyUDSF.");
         }

@@ -343,26 +343,26 @@ public class QueryGenerator extends AbstractGenerator {
             );
         }
 
-        if (selectStatement.getLayers().isEmpty()) {
-            if (selectStatement.getQueryType().equals(SelectStatement.QueryType.LastFirstQuery)) {
-                root = new Reorder(new OperatorSource(root), Arrays.asList("path", "value"));
-            } else {
-                List<String> order = new ArrayList<>();
-                selectStatement.getExpressions().forEach(expression -> {
-                    String colName = expression.getColumnName();
-                    order.add(colName);
-                });
-                root = new Reorder(new OperatorSource(root), order);
-            }
-        } else {
-            List<String> order = new ArrayList<>();
-            selectStatement.getExpressions().forEach(expression -> {
-                String colName = expression.getColumnName();
-                colName = colName.replaceFirst(selectStatement.getFromParts().get(0).getPath() + SQLConstant.DOT, "");
-                order.add(colName);
-            });
-            root = new Reorder(new OperatorSource(root), order);
-        }
+//        if (selectStatement.getLayers().isEmpty()) {
+//            if (selectStatement.getQueryType().equals(SelectStatement.QueryType.LastFirstQuery)) {
+//                root = new Reorder(new OperatorSource(root), Arrays.asList("path", "value"));
+//            } else {
+//                List<String> order = new ArrayList<>();
+//                selectStatement.getExpressions().forEach(expression -> {
+//                    String colName = expression.getColumnName();
+//                    order.add(colName);
+//                });
+//                root = new Reorder(new OperatorSource(root), order);
+//            }
+//        } else {
+//            List<String> order = new ArrayList<>();
+//            selectStatement.getExpressions().forEach(expression -> {
+//                String colName = expression.getColumnName();
+//                colName = colName.replaceFirst(selectStatement.getFromParts().get(0).getPath() + SQLConstant.DOT, "");
+//                order.add(colName);
+//            });
+//            root = new Reorder(new OperatorSource(root), order);
+//        }
 
         Map<String, String> aliasMap = selectStatement.getAliasMap();
         if (!aliasMap.isEmpty()) {

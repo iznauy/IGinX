@@ -49,6 +49,8 @@ public class Iginx {
         if (config.isEnableMonitor()) {
             new Thread(MonitorManager.getInstance()).start();
         }
+        // Test Redis Performance
+        // RedisPerformance.checkPerformance();
         Iginx iginx = new Iginx();
         iginx.startServer();
     }

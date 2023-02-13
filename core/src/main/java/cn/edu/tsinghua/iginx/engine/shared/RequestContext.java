@@ -9,6 +9,7 @@ import lombok.Data;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 
 @Data
 public class RequestContext {
@@ -19,11 +20,11 @@ public class RequestContext {
 
     private long endTime;
 
-    private long sessionId;
+    private transient long sessionId;
 
     private Map<String, Object> extraParams;
 
-    private Status status;
+    private transient Status status;
 
     private String sql;
 
@@ -31,13 +32,20 @@ public class RequestContext {
 
     private SqlType sqlType;
 
-    private Statement statement;
+    private transient Statement statement;
 
-    private Result result;
+    private transient Result result;
 
     private boolean useStream;
 
     private PhysicalTask physicalTree;
+
+    private boolean recover;
+
+    private boolean enableFaultTolerance;
+
+    private transient CountDownLatch resultLatch = new CountDownLatch(1);
+
 
     private void init() {
         this.id = SnowFlakeUtils.getInstance().nextId();
@@ -45,13 +53,13 @@ public class RequestContext {
         this.extraParams = new HashMap<>();
     }
 
-    public RequestContext() {
-        init();
-    }
-
     public RequestContext(long sessionId) {
         init();
         this.sessionId = sessionId;
+    }
+
+    public RequestContext() {
+        this.extraParams = new HashMap<>();
     }
 
     public RequestContext(long sessionId, Statement statement) {
@@ -77,6 +85,20 @@ public class RequestContext {
         this.fromSQL = true;
         this.sqlType = SqlType.Unknown;
         this.useStream = useStream;
+        this.recover = false;
+    }
+
+    public RequestContext(long sessionId, long queryId, String sql, boolean useStream) {
+        this.sessionId = sessionId;
+        this.id = queryId;
+        this.sql = sql;
+        this.fromSQL = true;
+        this.sqlType = SqlType.Unknown;
+        this.useStream = useStream;
+        this.recover = true;
+
+        this.startTime = System.currentTimeMillis();
+        this.extraParams = new HashMap<>();
     }
 
     public Object getExtraParam(String key) {
@@ -96,6 +118,16 @@ public class RequestContext {
         if (this.result != null) {
             this.result.setQueryId(id);
         }
+        this.resultLatch.countDown();
         this.endTime = System.currentTimeMillis();
+    }
+
+    public Result takeResult() {
+        try {
+            resultLatch.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        return this.result;
     }
 }

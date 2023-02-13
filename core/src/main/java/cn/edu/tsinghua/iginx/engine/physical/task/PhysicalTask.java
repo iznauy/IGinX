@@ -19,11 +19,12 @@
 package cn.edu.tsinghua.iginx.engine.physical.task;
 
 
+import cn.edu.tsinghua.iginx.engine.shared.RequestContext;
 import cn.edu.tsinghua.iginx.engine.shared.operator.Operator;
 
 import java.util.List;
 
-public interface PhysicalTask extends Measurable {
+public interface PhysicalTask extends Measurable, ExtraInfo {
 
     TaskType getType();
 
@@ -38,5 +39,12 @@ public interface PhysicalTask extends Measurable {
     void setFollowerTask(PhysicalTask task);
 
     String getInfo();
+
+    RequestContext getContext();
+
+    boolean hasParentTask();
+
+    List<PhysicalTask> getParentTasks();
+
 
 }
