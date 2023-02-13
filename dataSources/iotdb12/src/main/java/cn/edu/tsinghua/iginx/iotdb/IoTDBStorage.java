@@ -24,6 +24,7 @@ import cn.edu.tsinghua.iginx.engine.physical.exception.PhysicalTaskExecuteFailur
 import cn.edu.tsinghua.iginx.engine.physical.exception.StorageInitializationException;
 import cn.edu.tsinghua.iginx.engine.physical.storage.IStorage;
 import cn.edu.tsinghua.iginx.engine.physical.storage.domain.Timeseries;
+import cn.edu.tsinghua.iginx.engine.physical.storage.fault_tolerance.Connector;
 import cn.edu.tsinghua.iginx.engine.physical.task.StoragePhysicalTask;
 import cn.edu.tsinghua.iginx.engine.physical.task.TaskExecuteResult;
 import cn.edu.tsinghua.iginx.engine.shared.TimeRange;
@@ -152,6 +153,13 @@ public class IoTDBStorage implements IStorage {
     }
 
     @Override
+    public Connector getConnector() {
+        return new IoTDBConnector(this.meta.getIp(), this.meta.getPort(),
+                this.meta.getExtraParams().getOrDefault(USERNAME, DEFAULT_USERNAME),
+                this.meta.getExtraParams().getOrDefault(PASSWORD, DEFAULT_PASSWORD));
+    }
+
+    @Override
     public TaskExecuteResult execute(StoragePhysicalTask task) {
         List<Operator> operators = task.getOperators();
         if (operators.size() < 1) {
@@ -168,6 +176,9 @@ public class IoTDBStorage implements IStorage {
             } else {
                 FragmentMeta fragment = task.getTargetFragment();
                 filter = new AndFilter(Arrays.asList(new KeyFilter(Op.GE, fragment.getTimeInterval().getStartTime()), new KeyFilter(Op.L, fragment.getTimeInterval().getEndTime())));
+            }
+            if (task.isSkipData()) {
+                filter = new AndFilter(Arrays.asList(filter, new KeyFilter(Op.G, task.getLastTimestamp())));
             }
             return isDummyStorageUnit ? executeQueryHistoryTask(task.getTargetFragment().getTsInterval(), project, filter) : executeQueryTask(storageUnit, project, filter);
         } else if (op.getType() == OperatorType.Insert) {
@@ -643,7 +654,6 @@ public class IoTDBStorage implements IStorage {
                 try {
                     sessionPool.insertTablets(tabletsMap.get(entry.getKey()));
                 } catch (IoTDBConnectionException | StatementExecutionException e) {
-                    logger.error(e.getMessage());
                     return e;
                 }
 

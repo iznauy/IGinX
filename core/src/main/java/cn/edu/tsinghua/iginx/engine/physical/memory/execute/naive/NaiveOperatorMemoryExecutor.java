@@ -42,6 +42,7 @@ import cn.edu.tsinghua.iginx.engine.shared.operator.filter.Filter;
 import cn.edu.tsinghua.iginx.engine.shared.operator.filter.FilterType;
 import cn.edu.tsinghua.iginx.engine.shared.operator.filter.PathFilter;
 import cn.edu.tsinghua.iginx.engine.shared.operator.type.OuterJoinType;
+import cn.edu.tsinghua.iginx.sharedstore.utils.RowStreamStoreUtils;
 import cn.edu.tsinghua.iginx.thrift.DataType;
 import cn.edu.tsinghua.iginx.utils.Bitmap;
 import cn.edu.tsinghua.iginx.utils.Pair;
@@ -83,11 +84,13 @@ public class NaiveOperatorMemoryExecutor implements OperatorMemoryExecutor {
             case Rename:
                 return executeRename((Rename) operator, transformToTable(stream));
             case Reorder:
-                return executeReorder((Reorder) operator, transformToTable(stream));
+                return stream; // RE_ORDER_DO_NOTHING
             case AddSchemaPrefix:
                 return executeAddSchemaPrefix((AddSchemaPrefix) operator, transformToTable(stream));
             case GroupBy:
                 return executeGroupBy((GroupBy) operator, stream);
+            case Load:
+                return executeLoad((Load) operator);
             default:
                 throw new UnexpectedOperatorException(
                     "unknown unary operator: " + operator.getType());
@@ -456,6 +459,15 @@ public class NaiveOperatorMemoryExecutor implements OperatorMemoryExecutor {
             }
         });
         return new Table(newHeader, rows);
+    }
+
+    private RowStream executeLoad(Load load) throws PhysicalException {
+        String key = load.getKey();
+        RowStream stream = RowStreamStoreUtils.loadRowStream(key);
+        if (stream == null) {
+            throw new PhysicalException("load stream from shared storage failure, key = " + key);
+        }
+        return stream;
     }
 
     private RowStream executeJoin(Join join, Table tableA, Table tableB) throws PhysicalException {
@@ -1726,8 +1738,7 @@ public class NaiveOperatorMemoryExecutor implements OperatorMemoryExecutor {
         }
     }
 
-    private RowStream executeUnion(Union union, Table tableA, Table tableB)
-        throws PhysicalException {
+    public Table executeUnion(Union union, Table tableA, Table tableB) throws PhysicalException {
         // 检查时间是否一致
         Header headerA = tableA.getHeader();
         Header headerB = tableB.getHeader();

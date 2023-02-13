@@ -50,6 +50,10 @@ public class TaskExecuteResult {
         return rowStream;
     }
 
+    public boolean hasSetRowStream() {
+        return this.rowStream != null;
+    }
+
     public void setRowStream(RowStream rowStream) {
         this.rowStream = rowStream;
     }
