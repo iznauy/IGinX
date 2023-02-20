@@ -50,10 +50,17 @@ public class Result {
     private long jobId;
     private List<Long> jobIdList;
 
+    private FetchResultsResp cachedFetchResp;
+
+    private long cachedFetchPosition;
+
     public Result(Status status) {
         this.status = status;
         this.pointsNum = 0L;
         this.replicaNum = 0;
+
+        cachedFetchResp = null;
+        cachedFetchPosition = -1;
     }
 
     public QueryDataResp getQueryDataResp() {
@@ -153,7 +160,10 @@ public class Result {
         return resp;
     }
 
-    public FetchResultsResp fetch(int fetchSize) {
+    public FetchResultsResp fetch(long position, int fetchSize) {
+        if (position == this.cachedFetchPosition && this.cachedFetchResp != null) {
+            return this.cachedFetchResp;
+        }
         FetchResultsResp resp = new FetchResultsResp(status, false);
 
         if (status != RpcUtils.SUCCESS) {
@@ -210,6 +220,9 @@ public class Result {
             logger.error("unexpected error when load row stream: ", e);
             resp.setStatus(RpcUtils.FAILURE);
         }
+        // cache current result
+        this.cachedFetchResp = resp;
+        this.cachedFetchPosition = position;
         return resp;
     }
 

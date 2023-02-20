@@ -57,6 +57,8 @@ public class QueryDataSet {
 
     private int index;
 
+    private int position;
+
     public QueryDataSet(Session session, long queryId, int fetchSize) {
         this.session = session;
         this.queryId = queryId;
@@ -64,6 +66,7 @@ public class QueryDataSet {
         this.hasInitHeader = false;
         this.state = State.UNKNOWN;
         this.index = 0;
+        this.position = 0;
     }
 
     public void close() throws SessionException, ExecutionException {
@@ -78,10 +81,11 @@ public class QueryDataSet {
         valuesList = null;
         index = 0;
 
-        FetchResultsResp resp = session.fetchResult(queryId, fetchSize);
+        FetchResultsResp resp = session.fetchResult(queryId, fetchSize, position);
         if (resp.queryDataSet != null) {
             bitmapList = resp.queryDataSet.bitmapList;
             valuesList = resp.queryDataSet.valuesList;
+            position += resp.queryDataSet.valuesList.size();
         }
         state = resp.hasMoreResults ? State.HAS_MORE : State.NO_MORE;
 

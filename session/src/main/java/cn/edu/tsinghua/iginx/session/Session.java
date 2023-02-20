@@ -1076,8 +1076,8 @@ public class Session {
         return executeQuery(0L, statement, fetchSize);
     }
 
-    FetchResultsResp fetchResult(long queryId, int fetchSize) throws SessionException, ExecutionException {
-        FetchResultsReq req = new FetchResultsReq(sessionId, queryId);
+    FetchResultsResp fetchResult(long queryId, int fetchSize, int position) throws SessionException, ExecutionException {
+        FetchResultsReq req = new FetchResultsReq(sessionId, queryId, position);
         req.setFetchSize(fetchSize);
         FetchResultsResp resp;
 

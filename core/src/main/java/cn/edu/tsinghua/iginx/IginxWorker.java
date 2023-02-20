@@ -550,7 +550,7 @@ public class IginxWorker implements IService.Iface {
         if (context == null) {
             return new FetchResultsResp(RpcUtils.SUCCESS, false);
         }
-        return context.takeResult().fetch(req.getFetchSize());
+        return context.takeResult().fetch(req.getPosition(), req.getFetchSize());
     }
 
     @Override
