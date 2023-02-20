@@ -1,17 +1,15 @@
 package cn.edu.tsinghua.iginx.sharedstore.utils;
 
+import cn.edu.tsinghua.iginx.conf.ConfigDescriptor;
 import cn.edu.tsinghua.iginx.engine.physical.exception.PhysicalException;
 import cn.edu.tsinghua.iginx.engine.physical.memory.execute.Table;
 import cn.edu.tsinghua.iginx.engine.shared.data.read.Header;
 import cn.edu.tsinghua.iginx.engine.shared.data.read.Row;
 import cn.edu.tsinghua.iginx.engine.shared.data.read.RowStream;
 import cn.edu.tsinghua.iginx.sharedstore.SharedStore;
-import cn.edu.tsinghua.iginx.sharedstore.redis.RedisStore;
+import cn.edu.tsinghua.iginx.sharedstore.SharedStoreManager;
 import cn.edu.tsinghua.iginx.thrift.DataType;
-import com.alibaba.fastjson.serializer.SerializeFilter;
-import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.alibaba.fastjson2.JSON;
-import com.alibaba.fastjson2.JSONWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,7 +20,7 @@ public class RowStreamStoreUtils {
 
     private static final Logger logger = LoggerFactory.getLogger(RowStreamStoreUtils.class);
 
-    private static final SharedStore sharedStore = RedisStore.getInstance();
+    private static final SharedStore sharedStore = SharedStoreManager.getInstance().getSharedStore(ConfigDescriptor.getInstance().getConfig().getSharedStorage());
 
     public static long estimateRowStreamSize(RowStreamHolder holder) throws PhysicalException {
         Table table = holder.getAsTable();

@@ -84,7 +84,7 @@ public class MemoryPhysicalTaskDispatcher {
                                 result = new TaskExecuteResult(new PhysicalException(e));
                             }
                             long span = System.currentTimeMillis() - startTime;
-                            if (result.getRowStream() != null) {
+                            if (result.hasSetRowStream()) {
                                 currentTask.setSpan(span);
                                 if (currentTask.getContext().isEnableFaultTolerance()) {
                                     DefaultFaultTolerancePolicy.getInstance().persistence(currentTask, result);

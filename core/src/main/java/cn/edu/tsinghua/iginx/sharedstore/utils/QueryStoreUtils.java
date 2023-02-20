@@ -1,8 +1,9 @@
 package cn.edu.tsinghua.iginx.sharedstore.utils;
 
+import cn.edu.tsinghua.iginx.conf.ConfigDescriptor;
 import cn.edu.tsinghua.iginx.engine.shared.RequestContext;
 import cn.edu.tsinghua.iginx.sharedstore.SharedStore;
-import cn.edu.tsinghua.iginx.sharedstore.redis.RedisStore;
+import cn.edu.tsinghua.iginx.sharedstore.SharedStoreManager;
 import com.alibaba.fastjson2.JSON;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,7 +14,7 @@ public class QueryStoreUtils {
 
     private static final Logger logger = LoggerFactory.getLogger(QueryStoreUtils.class);
 
-    private static final SharedStore sharedStore = RedisStore.getInstance();
+    private static final SharedStore sharedStore = SharedStoreManager.getInstance().getSharedStore(ConfigDescriptor.getInstance().getConfig().getSharedStorage());
 
     public static boolean storeQueryContext(RequestContext context){
         long queryId = context.getId();

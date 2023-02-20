@@ -43,11 +43,11 @@ public class FaultToleranceStorageTaskRepeater {
         if (result.getException() != null) {
             throw result.getException();
         }
-        if (result.getRowStream() == null) {
+        RowStream stream = result.getRowStream();
+        if (stream == null) {
             logger.error("unexpected row stream is null in FaultToleranceStorageTaskRepeater.");
             return;
         }
-        RowStream stream = result.getRowStream();
         Header header = null;
         List<Row> rows = new ArrayList<>();
         try {
@@ -95,13 +95,14 @@ public class FaultToleranceStorageTaskRepeater {
             return new TaskExecuteResult(exception);
         }
 
+        if (tableList.size() == 0) {
+            return new TaskExecuteResult(Table.ONLY_KEY_TABLE);
+        }
         // 顺序合并多个 table
         Table table = tableList.get(0);
         for (int i = 1; i < tableList.size(); i++) {
             table = NaiveOperatorMemoryExecutor.getInstance().executeUnion(null, table, tableList.get(i));
         }
-
-        logger.info("axxxxx");
         return new TaskExecuteResult(table);
     }
 }

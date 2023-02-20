@@ -1,5 +1,6 @@
 package cn.edu.tsinghua.iginx.engine.physical.fault;
 
+import cn.edu.tsinghua.iginx.conf.ConfigDescriptor;
 import cn.edu.tsinghua.iginx.engine.physical.exception.PhysicalException;
 import cn.edu.tsinghua.iginx.engine.physical.task.PhysicalTask;
 import cn.edu.tsinghua.iginx.engine.physical.task.TaskExecuteResult;
@@ -15,8 +16,13 @@ public abstract class AbstractFaultTolerancePolicy implements FaultTolerancePoli
 
     protected abstract boolean needPersistence(PhysicalTask task, TaskExecuteResult result);
 
+    private final boolean enableSharedStorage = ConfigDescriptor.getInstance().getConfig().isEnableSharedStorage();
+
     @Override
     public void persistence(PhysicalTask task, TaskExecuteResult result) {
+        if (!enableSharedStorage) {
+            return;
+        }
         if (task.getContext() == null) {
             logger.error("unexpected task context is null");
             return;

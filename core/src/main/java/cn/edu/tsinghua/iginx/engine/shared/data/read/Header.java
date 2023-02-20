@@ -26,6 +26,8 @@ public final class Header {
 
     public static final Header EMPTY_HEADER = new Header(Collections.emptyList());
 
+    public static final Header ONLY_KEY_HEADER = new Header(Field.KEY, Collections.emptyList());
+
     private final Field key;
 
     private final List<Field> fields;

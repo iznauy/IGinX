@@ -141,6 +141,10 @@ public class ConfigDescriptor {
             config.setHistoricalPrefixList(properties.getProperty("historicalPrefixList", ""));
             config.setExpectedStorageUnitNum(Integer.parseInt(properties.getProperty("expectedStorageUnitNum", "0")));
             config.setLocalParquetStorage(Boolean.parseBoolean(properties.getProperty("isLocalParquetStorage", "true")));
+
+            config.setEnableFaultTolerance(Boolean.parseBoolean(properties.getProperty("enableFaultTolerance", "false")));
+            config.setEnableSharedStorage(Boolean.parseBoolean(properties.getProperty("enableSharedStorage", "true")));
+            config.setSharedStorage(properties.getProperty("sharedStorage", "redis"));
         } catch (IOException e) {
             logger.error("Fail to load properties: ", e);
         }

@@ -271,8 +271,10 @@ public class StatementExecutor {
             if (constraintManager.check(root) && checker.check(root)) {
                 // 持久化查询本身
                 if (ctx.getSqlType() == SqlType.Query) {
-                    ctx.setEnableFaultTolerance(true);
-                    QueryStoreUtils.storeQueryContext(ctx);
+                    ctx.setEnableFaultTolerance(ConfigDescriptor.getInstance().getConfig().isEnableFaultTolerance());
+                    if (config.isEnableSharedStorage()) {
+                        QueryStoreUtils.storeQueryContext(ctx);
+                    }
                 }
 
                 before(ctx, prePhysicalProcessors);

@@ -126,7 +126,7 @@ public class StoragePhysicalTaskExecutor {
                                     result = new TaskExecuteResult(new PhysicalException(e));
                                 }
                                 long span = System.currentTimeMillis() - startTime;
-                                if (result.getRowStream() != null) {
+                                if (result.hasSetRowStream()) {
                                     task.setSpan(span);
                                     if (task.getContext().isEnableFaultTolerance()) {
                                         DefaultFaultTolerancePolicy.getInstance().persistence(task, result);
