@@ -173,6 +173,12 @@ public class Config {
 
     private boolean isLocalParquetStorage = true;
 
+    private boolean enableFaultTolerance = false;
+
+    private boolean enableSharedStorage = true;
+
+    private String sharedStorage = "redis";
+
     public int getMaxTimeseriesLength() {
         return maxTimeseriesLength;
     }
@@ -711,5 +717,29 @@ public class Config {
 
     public void setLocalParquetStorage(boolean localParquetStorage) {
         isLocalParquetStorage = localParquetStorage;
+    }
+
+    public boolean isEnableFaultTolerance() {
+        return enableFaultTolerance;
+    }
+
+    public void setEnableFaultTolerance(boolean enableFaultTolerance) {
+        this.enableFaultTolerance = enableFaultTolerance;
+    }
+
+    public boolean isEnableSharedStorage() {
+        return enableSharedStorage;
+    }
+
+    public void setEnableSharedStorage(boolean enableSharedStorage) {
+        this.enableSharedStorage = enableSharedStorage;
+    }
+
+    public String getSharedStorage() {
+        return sharedStorage;
+    }
+
+    public void setSharedStorage(String sharedStorage) {
+        this.sharedStorage = sharedStorage;
     }
 }

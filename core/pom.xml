@@ -44,6 +44,11 @@
     </repositories>
     <dependencies>
         <dependency>
+            <groupId>redis.clients</groupId>
+            <artifactId>jedis</artifactId>
+            <version>4.4.0-m1</version>
+        </dependency>
+        <dependency>
             <groupId>cn.edu.tsinghua</groupId>
             <artifactId>iginx-thrift</artifactId>
             <version>${project.version}</version>

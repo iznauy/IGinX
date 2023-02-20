@@ -45,7 +45,6 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
@@ -105,7 +104,7 @@ public class IginxWorker implements IService.Iface {
         }
         RequestContext ctx = contextBuilder.build(req);
         executor.execute(ctx);
-        return ctx.getResult().getStatus();
+        return ctx.takeResult().getStatus();
     }
 
     @Override
@@ -119,7 +118,7 @@ public class IginxWorker implements IService.Iface {
         }
         RequestContext ctx = contextBuilder.build(req);
         executor.execute(ctx);
-        return ctx.getResult().getStatus();
+        return ctx.takeResult().getStatus();
     }
 
     @Override
@@ -133,7 +132,7 @@ public class IginxWorker implements IService.Iface {
         }
         RequestContext ctx = contextBuilder.build(req);
         executor.execute(ctx);
-        return ctx.getResult().getStatus();
+        return ctx.takeResult().getStatus();
     }
 
     @Override
@@ -147,7 +146,7 @@ public class IginxWorker implements IService.Iface {
         }
         RequestContext ctx = contextBuilder.build(req);
         executor.execute(ctx);
-        return ctx.getResult().getStatus();
+        return ctx.takeResult().getStatus();
     }
 
     @Override
@@ -161,7 +160,7 @@ public class IginxWorker implements IService.Iface {
         }
         RequestContext ctx = contextBuilder.build(req);
         executor.execute(ctx);
-        return ctx.getResult().getStatus();
+        return ctx.takeResult().getStatus();
     }
 
     @Override
@@ -171,7 +170,7 @@ public class IginxWorker implements IService.Iface {
         }
         RequestContext ctx = contextBuilder.build(req);
         executor.execute(ctx);
-        return ctx.getResult().getStatus();
+        return ctx.takeResult().getStatus();
     }
 
     @Override
@@ -181,7 +180,7 @@ public class IginxWorker implements IService.Iface {
         }
         RequestContext ctx = contextBuilder.build(req);
         executor.execute(ctx);
-        return ctx.getResult().getQueryDataResp();
+        return ctx.takeResult().getQueryDataResp();
     }
 
     @Override
@@ -355,7 +354,7 @@ public class IginxWorker implements IService.Iface {
         }
         RequestContext ctx = contextBuilder.build(req);
         executor.execute(ctx);
-        return ctx.getResult().getAggregateQueryResp();
+        return ctx.takeResult().getAggregateQueryResp();
     }
 
     @Override
@@ -365,7 +364,7 @@ public class IginxWorker implements IService.Iface {
         }
         RequestContext ctx = contextBuilder.build(req);
         executor.execute(ctx);
-        return ctx.getResult().getDownSampleQueryResp();
+        return ctx.takeResult().getDownSampleQueryResp();
     }
 
     @Override
@@ -375,7 +374,7 @@ public class IginxWorker implements IService.Iface {
         }
         RequestContext ctx = contextBuilder.build(req);
         executor.execute(ctx);
-        return ctx.getResult().getShowColumnsResp();
+        return ctx.takeResult().getShowColumnsResp();
     }
 
     @Override
@@ -393,7 +392,7 @@ public class IginxWorker implements IService.Iface {
         StatementExecutor executor = StatementExecutor.getInstance();
         RequestContext ctx = contextBuilder.build(req);
         executor.execute(ctx);
-        return ctx.getResult().getExecuteSqlResp();
+        return ctx.takeResult().getExecuteSqlResp();
     }
 
     @Override
@@ -404,7 +403,7 @@ public class IginxWorker implements IService.Iface {
 
         RequestContext ctx = contextBuilder.build(req);
         executor.execute(ctx);
-        return ctx.getResult().getLastQueryResp();
+        return ctx.takeResult().getLastQueryResp();
     }
 
     @Override
@@ -535,9 +534,14 @@ public class IginxWorker implements IService.Iface {
     public ExecuteStatementResp executeStatement(ExecuteStatementReq req) {
         StatementExecutor executor = StatementExecutor.getInstance();
         RequestContext ctx = contextBuilder.build(req);
-        executor.execute(ctx);
         queryManager.registerQuery(ctx.getId(), ctx);
-        return ctx.getResult().getExecuteStatementResp(req.getFetchSize());
+        Status status = executor.asyncExecute(ctx);
+        ExecuteStatementResp resp = new ExecuteStatementResp(status);
+        if (status != RpcUtils.SUCCESS) {
+            return resp;
+        }
+        resp.setQueryId(ctx.getId());
+        return resp;
     }
 
     @Override
@@ -546,7 +550,7 @@ public class IginxWorker implements IService.Iface {
         if (context == null) {
             return new FetchResultsResp(RpcUtils.SUCCESS, false);
         }
-        return context.getResult().fetch(req.getFetchSize());
+        return context.takeResult().fetch(req.getPosition(), req.getFetchSize());
     }
 
     @Override
@@ -712,7 +716,7 @@ public class IginxWorker implements IService.Iface {
             req.getEndTime());
         RequestContext ctx = contextBuilder.build(queryDataReq);
         executor.execute(ctx);
-        QueryDataResp queryDataResp = ctx.getResult().getQueryDataResp();
+        QueryDataResp queryDataResp = ctx.takeResult().getQueryDataResp();
 
         for (DataType type : queryDataResp.getDataTypeList()) {
             if (type.equals(DataType.BINARY) || type.equals(DataType.BOOLEAN)) {

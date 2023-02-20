@@ -21,10 +21,12 @@ import cn.edu.tsinghua.iginx.exceptions.ExecutionException;
 import cn.edu.tsinghua.iginx.exceptions.SQLParserException;
 import cn.edu.tsinghua.iginx.exceptions.StatusCode;
 import cn.edu.tsinghua.iginx.resource.ResourceManager;
+import cn.edu.tsinghua.iginx.sharedstore.utils.QueryStoreUtils;
 import cn.edu.tsinghua.iginx.sql.statement.*;
 import cn.edu.tsinghua.iginx.statistics.IStatisticsCollector;
 import cn.edu.tsinghua.iginx.thrift.AggregateType;
 import cn.edu.tsinghua.iginx.thrift.DataType;
+import cn.edu.tsinghua.iginx.thrift.SqlType;
 import cn.edu.tsinghua.iginx.thrift.Status;
 import cn.edu.tsinghua.iginx.utils.Bitmap;
 import cn.edu.tsinghua.iginx.utils.ByteUtils;
@@ -37,6 +39,9 @@ import org.slf4j.LoggerFactory;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.ByteBuffer;
 import java.util.*;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 public class StatementExecutor {
 
@@ -68,6 +73,8 @@ public class StatementExecutor {
     private final List<PostPhysicalProcessor> postPhysicalProcessors = new ArrayList<>();
     private final List<PreExecuteProcessor> preExecuteProcessors = new ArrayList<>();
     private final List<PostExecuteProcessor> postExecuteProcessors = new ArrayList<>();
+
+    private final ThreadPoolExecutor asyncStatementExecutors = new ThreadPoolExecutor(50, Integer.MAX_VALUE,60L, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
 
     private static class StatementExecutorHolder {
         private final static StatementExecutor instance = new StatementExecutor();
@@ -179,6 +186,22 @@ public class StatementExecutor {
         after(ctx, postExecuteProcessors);
     }
 
+    public Status asyncExecute(RequestContext ctx) {
+        if (config.isEnableMemoryControl() && resourceManager.reject(ctx)) {
+            return RpcUtils.SERVICE_UNAVAILABLE;
+        }
+        asyncStatementExecutors.execute(() -> {
+            before(ctx, preExecuteProcessors);
+            if (ctx.isFromSQL()) {
+                executeSQL(ctx);
+            } else {
+                executeStatement(ctx);
+            }
+            after(ctx, postExecuteProcessors);
+        });
+        return RpcUtils.SUCCESS;
+    }
+
     public void executeSQL(RequestContext ctx) {
         try {
             before(ctx, preParseProcessors);
@@ -195,7 +218,7 @@ public class StatementExecutor {
                 "see server log for more details.";
             ctx.setResult(new Result(RpcUtils.status(statusCode, errMsg)));
         } finally {
-            ctx.getResult().setSqlType(ctx.getSqlType());
+            ctx.takeResult().setSqlType(ctx.getSqlType());
         }
     }
 
@@ -246,8 +269,16 @@ public class StatementExecutor {
             Operator root = generator.generate(ctx);
             after(ctx, postLogicalProcessors);
             if (constraintManager.check(root) && checker.check(root)) {
+                // 持久化查询本身
+                if (ctx.getSqlType() == SqlType.Query) {
+                    ctx.setEnableFaultTolerance(ConfigDescriptor.getInstance().getConfig().isEnableFaultTolerance());
+                    if (config.isEnableSharedStorage()) {
+                        QueryStoreUtils.storeQueryContext(ctx);
+                    }
+                }
+
                 before(ctx, prePhysicalProcessors);
-                RowStream stream = engine.execute(root);
+                RowStream stream = engine.execute(ctx, root);
                 after(ctx, postPhysicalProcessors);
                 setResult(ctx, stream);
                 return;
@@ -264,7 +295,7 @@ public class StatementExecutor {
         RequestContext subSelectContext = new RequestContext(ctx.getSessionId(), selectStatement, true);
         process(subSelectContext);
 
-        RowStream rowStream = subSelectContext.getResult().getResultStream();
+        RowStream rowStream = subSelectContext.takeResult().getResultStream();
 
         // step 2: insert stage
         InsertStatement insertStatement = statement.getSubInsertStatement();
@@ -273,7 +304,7 @@ public class StatementExecutor {
         RequestContext subInsertContext = new RequestContext(ctx.getSessionId(), insertStatement, ctx.isUseStream());
         process(subInsertContext);
 
-        ctx.setResult(subInsertContext.getResult());
+        ctx.setResult(subInsertContext.takeResult());
     }
 
     private void processCountPoints(RequestContext ctx) throws ExecutionException, PhysicalException {
@@ -285,14 +316,14 @@ public class StatementExecutor {
         ctx.setStatement(statement);
         process(ctx);
 
-        Result result = ctx.getResult();
+        Result result = ctx.takeResult();
         long pointsNum = 0;
-        if (ctx.getResult().getValuesList() != null) {
+        if (ctx.takeResult().getValuesList() != null) {
             Object[] row = ByteUtils.getValuesByDataType(result.getValuesList().get(0), result.getDataTypes());
             pointsNum = Arrays.stream(row).mapToLong(e -> (Long) e).sum();
         }
 
-        ctx.getResult().setPointsNum(pointsNum);
+        ctx.takeResult().setPointsNum(pointsNum);
     }
 
     private void processDeleteTimeSeries(RequestContext ctx) throws ExecutionException, PhysicalException {

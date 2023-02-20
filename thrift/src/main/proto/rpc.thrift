@@ -433,8 +433,8 @@ struct CloseStatementReq {
 struct FetchResultsReq {
     1: required i64 sessionId
     2: required i64 queryId
-    3: optional i32 fetchSize
-    4: optional i64 timeout
+    3: required i64 position
+    4: optional i32 fetchSize
 }
 
 struct FetchResultsResp {

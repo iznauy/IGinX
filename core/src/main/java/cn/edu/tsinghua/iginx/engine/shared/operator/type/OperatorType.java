@@ -54,11 +54,11 @@ public enum OperatorType {
     MappingTransform,
     Rename,
     Reorder,
-    AddSchemaPrefix;
-
-
+    AddSchemaPrefix,
+    Load;
 
     private int value;
+
     OperatorType(){
         this(OperatorTypeCounter.nextValue);
     }
@@ -72,8 +72,7 @@ public enum OperatorType {
         return value;
     }
 
-    private static class OperatorTypeCounter
-    {
+    private static class OperatorTypeCounter {
         private static int nextValue = 0;
     }
 

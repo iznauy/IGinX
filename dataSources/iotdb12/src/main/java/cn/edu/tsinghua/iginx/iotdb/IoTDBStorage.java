@@ -169,6 +169,9 @@ public class IoTDBStorage implements IStorage {
                 FragmentMeta fragment = task.getTargetFragment();
                 filter = new AndFilter(Arrays.asList(new KeyFilter(Op.GE, fragment.getTimeInterval().getStartTime()), new KeyFilter(Op.L, fragment.getTimeInterval().getEndTime())));
             }
+            if (task.isSkipData()) {
+                filter = new AndFilter(Arrays.asList(filter, new KeyFilter(Op.G, task.getLastTimestamp())));
+            }
             return isDummyStorageUnit ? executeQueryHistoryTask(task.getTargetFragment().getTsInterval(), project, filter) : executeQueryTask(storageUnit, project, filter);
         } else if (op.getType() == OperatorType.Insert) {
             Insert insert = (Insert) op;

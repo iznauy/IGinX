@@ -164,6 +164,9 @@ public class ContextBuilder {
     }
 
     public RequestContext build(ExecuteStatementReq req) {
+        if (req.getQueryId() != 0L) { // 表示该请求为尝试重新执行的请求
+            return new RequestContext(req.getSessionId(), req.getQueryId(), req.getStatement(), true);
+        }
         return new RequestContext(req.getSessionId(), req.getStatement(), true);
     }
 
