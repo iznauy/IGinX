@@ -100,6 +100,11 @@ public final class StorageUnitMeta implements Cloneable {
     public void addReplica(StorageUnitMeta storageUnit) {
         if (replicas == null)
             replicas = new ArrayList<>();
+        for (StorageUnitMeta replica: replicas) {
+            if (Objects.equals(replica.getId(), storageUnit.getId())) {
+                return;
+            }
+        }
         replicas.add(storageUnit);
     }
 
@@ -190,8 +195,10 @@ public final class StorageUnitMeta implements Cloneable {
         builder.append(masterId);
         builder.append(", isMaster = ");
         builder.append(isMaster);
-        builder.append(", createdBy = ");
-        builder.append(createdBy);
+        builder.append(", state = ");
+        builder.append(state);
+        builder.append(", migration = ");
+        builder.append(migrationTo);
         if (replicas != null) {
             builder.append(", replica id list = ");
             for (StorageUnitMeta storageUnit : replicas) {

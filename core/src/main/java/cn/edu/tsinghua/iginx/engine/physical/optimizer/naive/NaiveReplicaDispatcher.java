@@ -38,8 +38,9 @@ public class NaiveReplicaDispatcher implements ReplicaDispatcher {
         }
         String masterStorageUnitId = task.getTargetFragment().getMasterStorageUnitId();
         StorageUnitMeta masterStorageUnit = DefaultMetaManager.getInstance().getStorageUnit(masterStorageUnitId);
-        if (masterStorageUnit.getState() == StorageUnitState.DISCARD) {
-            return masterStorageUnit.getMigrationTo();
+        while (masterStorageUnit.getState() == StorageUnitState.DISCARD) {
+            masterStorageUnitId = masterStorageUnit.getMigrationTo();
+            masterStorageUnit = DefaultMetaManager.getInstance().getStorageUnit(masterStorageUnitId);
         }
         return masterStorageUnitId;
     }

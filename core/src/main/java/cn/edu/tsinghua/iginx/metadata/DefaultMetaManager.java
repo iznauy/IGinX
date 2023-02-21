@@ -22,7 +22,6 @@ import cn.edu.tsinghua.iginx.conf.ConfigDescriptor;
 import cn.edu.tsinghua.iginx.conf.Constants;
 import cn.edu.tsinghua.iginx.engine.physical.storage.StorageManager;
 import cn.edu.tsinghua.iginx.exceptions.MetaStorageException;
-import cn.edu.tsinghua.iginx.exceptions.StatusCode;
 import cn.edu.tsinghua.iginx.metadata.cache.DefaultMetaCache;
 import cn.edu.tsinghua.iginx.metadata.cache.IMetaCache;
 import cn.edu.tsinghua.iginx.metadata.entity.*;
@@ -31,13 +30,12 @@ import cn.edu.tsinghua.iginx.metadata.hook.StorageUnitHook;
 import cn.edu.tsinghua.iginx.metadata.storage.IMetaStorage;
 import cn.edu.tsinghua.iginx.metadata.storage.etcd.ETCDMetaStorage;
 import cn.edu.tsinghua.iginx.metadata.storage.zk.ZooKeeperMetaStorage;
+import cn.edu.tsinghua.iginx.migration.storage.StorageMigrationPlan;
 import cn.edu.tsinghua.iginx.policy.simple.TimeSeriesCalDO;
 import cn.edu.tsinghua.iginx.metadata.sync.protocol.NetworkException;
 import cn.edu.tsinghua.iginx.metadata.sync.protocol.SyncProtocol;
 import cn.edu.tsinghua.iginx.sql.statement.InsertStatement;
 import cn.edu.tsinghua.iginx.thrift.AuthType;
-import cn.edu.tsinghua.iginx.thrift.Status;
-import cn.edu.tsinghua.iginx.thrift.StorageUnit;
 import cn.edu.tsinghua.iginx.thrift.UserType;
 import cn.edu.tsinghua.iginx.utils.Pair;
 import cn.edu.tsinghua.iginx.utils.SnowFlakeUtils;
@@ -339,6 +337,31 @@ public class DefaultMetaManager implements IMetaManager {
     }
 
     @Override
+    public boolean storeMigrationPlan(StorageMigrationPlan plan) {
+        return storage.storeMigrationPlan(plan);
+    }
+
+    @Override
+    public List<StorageMigrationPlan> scanStorageMigrationPlan() {
+        return storage.scanStorageMigrationPlan();
+    }
+
+    @Override
+    public StorageMigrationPlan getStorageMigrationPlan(long storageId) {
+        return storage.getStorageMigrationPlan(storageId);
+    }
+
+    @Override
+    public boolean transferMigrationPlan(long id, long from, long to) {
+        return storage.transferMigrationPlan(id, from, to);
+    }
+
+    @Override
+    public boolean deleteMigrationPlan(long id) {
+        return storage.deleteMigrationPlan(id);
+    }
+
+    @Override
     public boolean updateStorageEngine(long storageID, StorageEngineMeta storageEngineMeta) {
         if (getStorageEngine(storageID) == null) {
             return false;
@@ -368,8 +391,14 @@ public class DefaultMetaManager implements IMetaManager {
             Map<String, String> migrationStorageUnitMap = new HashMap<>();
             storage.lockStorageUnit();
             for (String storageUnitId: migrationMap.keySet()) {
-                String newStorageUnitId = storage.addStorageUnit();
                 StorageUnitMeta storageUnit = getStorageUnit(storageUnitId);
+                if (storageUnit.getState() == StorageUnitState.DISCARD) { // 已经迁移完了
+                    continue;
+                }
+                if (storageUnit.getMigrationTo() != null) { // 正在迁移中
+                    migrationStorageUnitMap.put(storageUnitId, storageUnit.getMigrationTo());
+                }
+                String newStorageUnitId = storage.addStorageUnit();
                 StorageUnitMeta clonedStorageUnit = storageUnit.clone();
                 StorageUnitMeta newStorageUnit = clonedStorageUnit.migrationStorageUnitMeta(newStorageUnitId, id, migrationMap.get(storageUnitId));
                 // 更新新的 storage unit
@@ -400,12 +429,17 @@ public class DefaultMetaManager implements IMetaManager {
     }
 
     @Override
-    public boolean finishMigrationStorageUnit(String storageUnitId) {
+    public boolean finishMigrationStorageUnit(String storageUnitId, boolean migrationData) {
         try {
             storage.lockStorageUnit();
             StorageUnitMeta sourceStorageUnit = getStorageUnit(storageUnitId);
             StorageUnitMeta clonedSourceStorageUnit = sourceStorageUnit.clone();
-            clonedSourceStorageUnit.setState(StorageUnitState.DISCARD);
+            if (migrationData) {
+                clonedSourceStorageUnit.setState(StorageUnitState.DISCARD);
+            } else {
+                clonedSourceStorageUnit.setState(StorageUnitState.NORMAL);
+                clonedSourceStorageUnit.setMigrationTo(null);
+            }
 
             StorageUnitMeta targetStorageUnit = getStorageUnit(sourceStorageUnit.getMigrationTo());
             StorageUnitMeta clonedTargetStorageUnit = targetStorageUnit.clone();
@@ -416,6 +450,10 @@ public class DefaultMetaManager implements IMetaManager {
                 hook.onChange(targetStorageUnit, clonedTargetStorageUnit);
             }
             storage.updateStorageUnit(clonedTargetStorageUnit);
+
+            if (!migrationData) {
+                clonedSourceStorageUnit.addReplica(targetStorageUnit);
+            }
             // 更新旧的 storage unit
             cache.updateStorageUnit(clonedSourceStorageUnit);
             for (StorageUnitHook hook : storageUnitHooks) {
@@ -474,6 +512,17 @@ public class DefaultMetaManager implements IMetaManager {
     @Override
     public List<IginxMeta> getIginxList() {
         return new ArrayList<>(cache.getIginxList());
+    }
+
+    @Override
+    public boolean containsIginx(long id) {
+        List<IginxMeta> iginxList = getIginxList();
+        for (IginxMeta meta: iginxList) {
+           if (meta.getId() == id) {
+               return true;
+           }
+        }
+        return false;
     }
 
     @Override

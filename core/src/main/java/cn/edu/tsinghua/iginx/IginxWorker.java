@@ -32,7 +32,6 @@ import cn.edu.tsinghua.iginx.exceptions.StatusCode;
 import cn.edu.tsinghua.iginx.metadata.DefaultMetaManager;
 import cn.edu.tsinghua.iginx.metadata.IMetaManager;
 import cn.edu.tsinghua.iginx.metadata.entity.*;
-import cn.edu.tsinghua.iginx.migration.MigrationManager;
 import cn.edu.tsinghua.iginx.migration.storage.StorageMigrationExecutor;
 import cn.edu.tsinghua.iginx.utils.JsonUtils;
 import cn.edu.tsinghua.iginx.resource.QueryResourceManager;
@@ -264,7 +263,7 @@ public class IginxWorker implements IService.Iface {
             return status;
         }
         try {
-            if (StorageMigrationExecutor.getInstance().migration(storageId, req.sync)) {
+            if (StorageMigrationExecutor.getInstance().migration(storageId, req.sync, true)) {
                 return RpcUtils.SUCCESS;
             }
             Status status = new Status(StatusCode.STATEMENT_EXECUTION_ERROR.getStatusCode());

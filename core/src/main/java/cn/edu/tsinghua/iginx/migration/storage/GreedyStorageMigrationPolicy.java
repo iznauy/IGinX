@@ -37,7 +37,7 @@ public class GreedyStorageMigrationPolicy extends StorageMigrationPolicy {
     }
 
     @Override
-    public Map<String, Long> generateMigrationPlans(long sourceStorageId) {
+    public StorageMigrationPlan generateMigrationPlans(long sourceStorageId, boolean migrationData) {
         logger.info("[storage migration] decide storage migration for " + sourceStorageId);
         Map<Long, List<StorageUnitMeta>> storageUnitsMap = metaManager.getStorageUnits().stream().filter(e -> !e.isDummy()).collect(Collectors.groupingBy(StorageUnitMeta::getStorageEngineId));
         List<StorageUnitMeta> storageUnits = storageUnitsMap.get(sourceStorageId);
@@ -57,6 +57,6 @@ public class GreedyStorageMigrationPolicy extends StorageMigrationPolicy {
             priority.weight++;
             storagePriorities.add(priority);
         }
-        return migrationMap;
+        return new StorageMigrationPlan(sourceStorageId, migrationData, migrationMap, metaManager.getIginxId());
     }
 }

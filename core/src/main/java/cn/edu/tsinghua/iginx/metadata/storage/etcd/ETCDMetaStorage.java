@@ -24,6 +24,7 @@ import cn.edu.tsinghua.iginx.metadata.entity.*;
 import cn.edu.tsinghua.iginx.metadata.hook.*;
 import cn.edu.tsinghua.iginx.metadata.storage.IMetaStorage;
 import cn.edu.tsinghua.iginx.metadata.sync.protocol.SyncProtocol;
+import cn.edu.tsinghua.iginx.migration.storage.StorageMigrationPlan;
 import cn.edu.tsinghua.iginx.utils.JsonUtils;
 import io.etcd.jetcd.*;
 import io.etcd.jetcd.kv.GetResponse;
@@ -398,6 +399,31 @@ public class ETCDMetaStorage implements IMetaStorage {
             }
         }
         return INSTANCE;
+    }
+
+    @Override
+    public boolean storeMigrationPlan(StorageMigrationPlan plan) {
+        return false;
+    }
+
+    @Override
+    public List<StorageMigrationPlan> scanStorageMigrationPlan() {
+        return null;
+    }
+
+    @Override
+    public StorageMigrationPlan getStorageMigrationPlan(long storageId) {
+        return null;
+    }
+
+    @Override
+    public boolean transferMigrationPlan(long id, long from, long to) {
+        return false;
+    }
+
+    @Override
+    public boolean deleteMigrationPlan(long id) {
+        return false;
     }
 
     private long nextId(String category) throws InterruptedException, ExecutionException {

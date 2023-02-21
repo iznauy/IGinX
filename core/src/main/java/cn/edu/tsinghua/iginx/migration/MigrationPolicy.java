@@ -452,7 +452,11 @@ public abstract class MigrationPolicy {
 
   public boolean migrationData(String sourceStorageUnitId, String targetStorageUnitId) {
     try {
-      List<FragmentMeta> fragmentMetas = DefaultMetaManager.getInstance().getFragmentsByStorageUnit(sourceStorageUnitId);
+      StorageUnitMeta sourceStorageUnit = DefaultMetaManager.getInstance().getStorageUnit(sourceStorageUnitId);
+      StorageUnitMeta targetStorageUnit = DefaultMetaManager.getInstance().getStorageUnit(targetStorageUnitId);
+
+      logger.info("migration data from du {} to du {}", sourceStorageUnitId, targetStorageUnitId);
+      List<FragmentMeta> fragmentMetas = DefaultMetaManager.getInstance().getFragmentsByStorageUnit(sourceStorageUnit.getMasterId());
 
       Set<String> pathRegexSet = new HashSet<>();
       ShowTimeSeries showTimeSeries = new ShowTimeSeries(new GlobalSource(),
@@ -473,12 +477,12 @@ public abstract class MigrationPolicy {
           }
         }
       }
-      StorageUnitMeta sourceStorageUnit = DefaultMetaManager.getInstance().getStorageUnit(sourceStorageUnitId);
-      StorageUnitMeta targetStorageUnit = DefaultMetaManager.getInstance().getStorageUnit(targetStorageUnitId);
+      logger.info("migration data from du {} to du {}, fragments = {}", sourceStorageUnitId, targetStorageUnitId, fragmentMetas);
       // 开始迁移数据
       for (FragmentMeta fragmentMeta: fragmentMetas) {
         Migration migration = new Migration(new GlobalSource(), sourceStorageUnit.getStorageEngineId(), targetStorageUnit.getStorageEngineId(),
                 fragmentMeta, new ArrayList<>(pathSet), targetStorageUnit);
+        logger.info("migration data from du {} to du {}, path = {}", sourceStorageUnit.getId(), targetStorageUnit.getId(), pathSet);
         physicalEngine.execute(null, migration);
       }
       return true;

@@ -22,6 +22,7 @@ import cn.edu.tsinghua.iginx.exceptions.MetaStorageException;
 import cn.edu.tsinghua.iginx.metadata.entity.*;
 import cn.edu.tsinghua.iginx.metadata.hook.StorageEngineChangeHook;
 import cn.edu.tsinghua.iginx.metadata.hook.StorageUnitHook;
+import cn.edu.tsinghua.iginx.migration.storage.StorageMigrationPlan;
 import cn.edu.tsinghua.iginx.policy.simple.TimeSeriesCalDO;
 import cn.edu.tsinghua.iginx.sql.statement.InsertStatement;
 import cn.edu.tsinghua.iginx.thrift.AuthType;
@@ -40,9 +41,19 @@ public interface IMetaManager {
      */
     boolean addStorageEngines(List<StorageEngineMeta> storageEngineMetas);
 
+    boolean storeMigrationPlan(StorageMigrationPlan plan);
+
+    List<StorageMigrationPlan> scanStorageMigrationPlan();
+
+    StorageMigrationPlan getStorageMigrationPlan(long storageId);
+
+    boolean transferMigrationPlan(long id, long from, long to);
+
+    boolean deleteMigrationPlan(long id);
+
     Map<String, String> startMigrationStorageUnits(Map<String, Long> migrationMap);
 
-    boolean finishMigrationStorageUnit(String storageUnitId);
+    boolean finishMigrationStorageUnit(String storageUnitId, boolean migrationData);
 
     /**
      * 更新存储引擎节点
@@ -76,6 +87,8 @@ public interface IMetaManager {
      * 获取所有活跃的 iginx 节点的元信息
      */
     List<IginxMeta> getIginxList();
+
+    boolean containsIginx(long id);
 
     int getIginxClusterSize();
 
