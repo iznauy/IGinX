@@ -5,6 +5,7 @@ import cn.edu.tsinghua.iginx.engine.physical.memory.execute.Table;
 import cn.edu.tsinghua.iginx.engine.physical.storage.IStorage;
 import cn.edu.tsinghua.iginx.engine.physical.storage.IStorageManager;
 import cn.edu.tsinghua.iginx.engine.physical.storage.domain.Timeseries;
+import cn.edu.tsinghua.iginx.engine.physical.storage.fault_tolerance.Connector;
 import cn.edu.tsinghua.iginx.engine.physical.task.StoragePhysicalTask;
 import cn.edu.tsinghua.iginx.engine.physical.task.TaskExecuteResult;
 import cn.edu.tsinghua.iginx.engine.shared.RequestContext;
@@ -177,6 +178,11 @@ public class FaultToleranceStorageTaskRepeaterTest {
     }
 
     abstract static class AbstractTestStorage implements IStorage {
+
+        @Override
+        public Connector getConnector() {
+            return null;
+        }
 
         @Override
         public List<Timeseries> getTimeSeries() throws PhysicalException {

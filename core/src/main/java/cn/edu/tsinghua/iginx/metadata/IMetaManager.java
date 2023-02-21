@@ -25,8 +25,8 @@ import cn.edu.tsinghua.iginx.metadata.hook.StorageUnitHook;
 import cn.edu.tsinghua.iginx.policy.simple.TimeSeriesCalDO;
 import cn.edu.tsinghua.iginx.sql.statement.InsertStatement;
 import cn.edu.tsinghua.iginx.thrift.AuthType;
-import cn.edu.tsinghua.iginx.protocol.NetworkException;
-import cn.edu.tsinghua.iginx.protocol.SyncProtocol;
+import cn.edu.tsinghua.iginx.metadata.sync.protocol.NetworkException;
+import cn.edu.tsinghua.iginx.metadata.sync.protocol.SyncProtocol;
 
 import cn.edu.tsinghua.iginx.utils.Pair;
 import java.util.List;

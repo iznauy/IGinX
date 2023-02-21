@@ -760,7 +760,6 @@ public class Config {
         isLocalParquetStorage = localParquetStorage;
     }
 
-<<<<<<< HEAD
     public boolean isEnableFaultTolerance() {
         return enableFaultTolerance;
     }

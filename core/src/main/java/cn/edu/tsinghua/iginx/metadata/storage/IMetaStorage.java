@@ -21,8 +21,8 @@ package cn.edu.tsinghua.iginx.metadata.storage;
 import cn.edu.tsinghua.iginx.exceptions.MetaStorageException;
 import cn.edu.tsinghua.iginx.metadata.entity.*;
 import cn.edu.tsinghua.iginx.metadata.hook.*;
-import cn.edu.tsinghua.iginx.protocol.NetworkException;
-import cn.edu.tsinghua.iginx.protocol.SyncProtocol;
+import cn.edu.tsinghua.iginx.metadata.sync.protocol.NetworkException;
+import cn.edu.tsinghua.iginx.metadata.sync.protocol.SyncProtocol;
 
 import java.util.List;
 import java.util.Map;
