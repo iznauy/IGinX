@@ -154,7 +154,9 @@ public class IoTDBStorage implements IStorage {
 
     @Override
     public Connector getConnector() {
-        return null;
+        return new IoTDBConnector(this.meta.getIp(), this.meta.getPort(),
+                this.meta.getExtraParams().getOrDefault(USERNAME, DEFAULT_USERNAME),
+                this.meta.getExtraParams().getOrDefault(PASSWORD, DEFAULT_PASSWORD));
     }
 
     @Override

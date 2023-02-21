@@ -130,7 +130,7 @@ public class StoragePhysicalTaskExecutor {
                                 long span = System.currentTimeMillis() - startTime;
                                 if (result.hasSetRowStream()) {
                                     task.setSpan(span);
-                                    if (task.getContext().isEnableFaultTolerance()) {
+                                    if (task.getContext() != null && task.getContext().isEnableFaultTolerance()) {
                                         DefaultFaultTolerancePolicy.getInstance().persistence(task, result);
                                     }
                                 }
