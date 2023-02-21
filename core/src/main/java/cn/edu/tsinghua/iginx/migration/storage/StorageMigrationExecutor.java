@@ -3,6 +3,7 @@ package cn.edu.tsinghua.iginx.migration.storage;
 import cn.edu.tsinghua.iginx.conf.ConfigDescriptor;
 import cn.edu.tsinghua.iginx.metadata.DefaultMetaManager;
 import cn.edu.tsinghua.iginx.metadata.IMetaManager;
+import cn.edu.tsinghua.iginx.metadata.entity.StorageEngineMeta;
 import cn.edu.tsinghua.iginx.migration.MigrationManager;
 import cn.edu.tsinghua.iginx.migration.MigrationPolicy;
 import org.slf4j.Logger;
@@ -78,7 +79,12 @@ public class StorageMigrationExecutor {
                 e.printStackTrace();
                 return false;
             }
-            return metaManager.deleteMigrationPlan(storageId);
+            if (!metaManager.deleteMigrationPlan(storageId)) {
+                return false;
+            }
+            StorageEngineMeta engineMeta = metaManager.getStorageEngine(storageId);
+            engineMeta.setRemoved(true);
+            return metaManager.updateStorageEngine(storageId, engineMeta);
         }
 
         @Override

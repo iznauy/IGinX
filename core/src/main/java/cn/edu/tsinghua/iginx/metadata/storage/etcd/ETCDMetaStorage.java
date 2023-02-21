@@ -218,11 +218,11 @@ public class ETCDMetaStorage implements IMetaStorage {
                         switch (event.getEventType()) {
                             case PUT:
                                 storageEngine = JsonUtils.fromJson(event.getKeyValue().getValue().getBytes(), StorageEngineMeta.class);
-                                storageChangeHook.onChange(storageEngine.getId(), storageEngine);
+                                storageChangeHook.onChange(storageEngine.getId(), null, storageEngine);
                                 break;
                             case DELETE:
                                 storageEngine = JsonUtils.fromJson(event.getPrevKV().getValue().getBytes(), StorageEngineMeta.class);
-                                storageChangeHook.onChange(storageEngine.getId(), null);
+                                storageChangeHook.onChange(storageEngine.getId(), null, null);
                                 break;
                             default:
                                 logger.error("unexpected watchEvent: " + event.getEventType());

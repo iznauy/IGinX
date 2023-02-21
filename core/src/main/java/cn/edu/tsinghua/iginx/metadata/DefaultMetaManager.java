@@ -147,24 +147,24 @@ public class DefaultMetaManager implements IMetaManager {
     }
 
     private void initStorageEngine() throws MetaStorageException {
-        storage.registerStorageChangeHook((id, storageEngine) -> {
-            if (storageEngine != null) {
-                if (storageEngine.isHasData()) {
-                    StorageUnitMeta dummyStorageUnit = storageEngine.getDummyStorageUnit();
+        storage.registerStorageChangeHook((id, before, after) -> {
+            if (after != null) {
+                if (after.isHasData()) {
+                    StorageUnitMeta dummyStorageUnit = after.getDummyStorageUnit();
                     dummyStorageUnit.setStorageEngineId(id);
                     dummyStorageUnit.setId(StorageUnitMeta.generateDummyStorageUnitID(id));
                     dummyStorageUnit.setMasterId(dummyStorageUnit.getId());
-                    FragmentMeta dummyFragment = storageEngine.getDummyFragment();
+                    FragmentMeta dummyFragment = after.getDummyFragment();
                     dummyFragment.setMasterStorageUnit(dummyStorageUnit);
                     dummyFragment.setMasterStorageUnitId(dummyStorageUnit.getId());
                 }
-                cache.addStorageEngine(storageEngine);
+                cache.addStorageEngine(after);
                 for (StorageEngineChangeHook hook : storageEngineChangeHooks) {
-                    hook.onChanged(null, storageEngine);
+                    hook.onChanged(before, after);
                 }
-                if (storageEngine.isHasData()) {
+                if (after.isHasData()) {
                     for (StorageUnitHook storageUnitHook : storageUnitHooks) {
-                        storageUnitHook.onChange(null, storageEngine.getDummyStorageUnit());
+                        storageUnitHook.onChange(null, after.getDummyStorageUnit());
                     }
                 }
             }

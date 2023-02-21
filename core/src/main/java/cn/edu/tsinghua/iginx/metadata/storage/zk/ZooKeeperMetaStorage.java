@@ -623,6 +623,20 @@ public class ZooKeeperMetaStorage implements IMetaStorage {
             StorageEngineMeta storageEngineMeta;
             switch (event.getType()) {
                 case NODE_ADDED:
+                    if (event.getData().getPath().equals(STORAGE_ENGINE_NODE_PREFIX)) {
+                        break;
+                    }
+                    data = event.getData().getData();
+                    logger.info("storage engine meta updated " + event.getData().getPath());
+                    logger.info("storage engine: " + new String(data));
+                    storageEngineMeta = JsonUtils.fromJson(JsonUtils.addType("tsInterval", new String(data).contains("timeSeries") ? "TimeSeriesPrefixRange":"TimeSeriesInterval", data), StorageEngineMeta.class);
+                    if (storageEngineMeta != null) {
+                        logger.info("new storage engine comes to cluster: id = " + storageEngineMeta.getId() + " ,ip = " + storageEngineMeta.getIp() + " , port = " + storageEngineMeta.getPort());
+                        storageChangeHook.onChange(storageEngineMeta.getId(), null, storageEngineMeta);
+                    } else {
+                        logger.error("resolve storage engine from zookeeper error");
+                    }
+                    break;
                 case NODE_UPDATED:
                     if (event.getData().getPath().equals(STORAGE_ENGINE_NODE_PREFIX)) {
                         break;
@@ -633,7 +647,7 @@ public class ZooKeeperMetaStorage implements IMetaStorage {
                     storageEngineMeta = JsonUtils.fromJson(JsonUtils.addType("tsInterval", new String(data).contains("timeSeries") ? "TimeSeriesPrefixRange":"TimeSeriesInterval", data), StorageEngineMeta.class);
                     if (storageEngineMeta != null) {
                         logger.info("new storage engine comes to cluster: id = " + storageEngineMeta.getId() + " ,ip = " + storageEngineMeta.getIp() + " , port = " + storageEngineMeta.getPort());
-                        storageChangeHook.onChange(storageEngineMeta.getId(), storageEngineMeta);
+                        storageChangeHook.onChange(storageEngineMeta.getId(), JsonUtils.fromJson(JsonUtils.addType("tsInterval", new String(data).contains("timeSeries") ? "TimeSeriesPrefixRange":"TimeSeriesInterval", event.getOldData().getData()), StorageEngineMeta.class), storageEngineMeta);
                     } else {
                         logger.error("resolve storage engine from zookeeper error");
                     }
@@ -651,7 +665,7 @@ public class ZooKeeperMetaStorage implements IMetaStorage {
                     storageEngineMeta = JsonUtils.fromJson(JsonUtils.addType("tsInterval", new String(data).contains("timeSeries") ? "TimeSeriesPrefixRange":"TimeSeriesInterval", data), StorageEngineMeta.class);
                     if (storageEngineMeta != null) {
                         logger.info("storage engine leave from cluster: id = " + storageEngineMeta.getId() + " ,ip = " + storageEngineMeta.getIp() + " , port = " + storageEngineMeta.getPort());
-                        storageChangeHook.onChange(storageEngineMeta.getId(), null);
+                        storageChangeHook.onChange(storageEngineMeta.getId(), null, null);
                     } else {
                         logger.error("resolve storage engine from zookeeper error");
                     }
