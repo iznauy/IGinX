@@ -55,6 +55,8 @@ public interface IMetaManager {
 
     boolean finishMigrationStorageUnit(String storageUnitId, boolean migrationData);
 
+    boolean updateStorageUnit(StorageUnitMeta storageUnit);
+
     /**
      * 更新存储引擎节点
      */

@@ -33,7 +33,7 @@ public final class StorageUnitMeta implements Cloneable {
 
     private String masterId;
 
-    private final boolean isMaster;
+    private boolean isMaster;
 
     private long createdBy;
 
@@ -162,9 +162,8 @@ public final class StorageUnitMeta implements Cloneable {
         }
         StorageUnitMeta storageUnitMeta = new StorageUnitMeta(id, storageEngineId, masterId, isMaster);
         storageUnitMeta.setCreatedBy(migrationBy);
-        storageUnitMeta.setInitialStorageUnit(initialStorageUnit);
+        storageUnitMeta.setInitialStorageUnit(false);
         storageUnitMeta.setState(StorageUnitState.CREATING);
-        storageUnitMeta.setReplicas(replicas);
 
         this.setMigrationTo(id);
         this.setState(StorageUnitState.MIGRATION);
@@ -275,4 +274,7 @@ public final class StorageUnitMeta implements Cloneable {
         }
     }
 
+    public void setMaster(boolean master) {
+        isMaster = master;
+    }
 }

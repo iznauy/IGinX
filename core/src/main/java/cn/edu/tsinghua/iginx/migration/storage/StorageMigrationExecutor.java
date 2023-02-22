@@ -1,5 +1,6 @@
 package cn.edu.tsinghua.iginx.migration.storage;
 
+import cn.edu.tsinghua.iginx.conf.Config;
 import cn.edu.tsinghua.iginx.conf.ConfigDescriptor;
 import cn.edu.tsinghua.iginx.metadata.DefaultMetaManager;
 import cn.edu.tsinghua.iginx.metadata.IMetaManager;
@@ -17,6 +18,8 @@ import java.util.concurrent.*;
 public class StorageMigrationExecutor {
 
     private static final Logger logger = LoggerFactory.getLogger(StorageMigrationExecutor.class);
+
+    private static final Config config = ConfigDescriptor.getInstance().getConfig();
 
     private final IMetaManager metaManager;
 
@@ -56,14 +59,26 @@ public class StorageMigrationExecutor {
             Map<String, String> storageUnitMigrationMap = metaManager.startMigrationStorageUnits(plan.getMigrationMap());
             List<Callable<Boolean>> tasks = new ArrayList<>();
 
-            for (String sourceStorageUnit: storageUnitMigrationMap.keySet()) {
-                String targetStorageUnit = storageUnitMigrationMap.get(sourceStorageUnit);
+            for (String sourceStorageUnitId: storageUnitMigrationMap.keySet()) {
+                String targetStorageUnitId = storageUnitMigrationMap.get(sourceStorageUnitId);
                 MigrationPolicy migrationPolicy = MigrationManager.getInstance().getMigration();
                 tasks.add(() -> {
-                    if (!migrationPolicy.migrationData(sourceStorageUnit, targetStorageUnit)) {
-                        return false;
+                    if (migrationData) {
+                        logger.info("call migration from {} tio {}", sourceStorageUnitId, targetStorageUnitId);
+                        if (!migrationPolicy.migrationData(sourceStorageUnitId, targetStorageUnitId)) {
+                            return false;
+                        }
+                        try {
+                            logger.info("migration is so short, so we sleep 10 s");
+                            Thread.sleep(1000 * 10);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                        return metaManager.finishMigrationStorageUnit(sourceStorageUnitId, true);
                     }
-                    return metaManager.finishMigrationStorageUnit(sourceStorageUnit, migrationData);
+                    // 这里指的是非原址迁移
+
+                    return metaManager.finishMigrationStorageUnit(sourceStorageUnitId, false);
                 });
             }
 

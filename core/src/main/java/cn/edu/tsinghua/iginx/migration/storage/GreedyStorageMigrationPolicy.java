@@ -2,6 +2,7 @@ package cn.edu.tsinghua.iginx.migration.storage;
 
 import cn.edu.tsinghua.iginx.metadata.IMetaManager;
 import cn.edu.tsinghua.iginx.metadata.entity.StorageUnitMeta;
+import cn.edu.tsinghua.iginx.metadata.entity.StorageUnitState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +40,8 @@ public class GreedyStorageMigrationPolicy extends StorageMigrationPolicy {
     @Override
     public StorageMigrationPlan generateMigrationPlans(long sourceStorageId, boolean migrationData) {
         logger.info("[storage migration] decide storage migration for " + sourceStorageId);
-        Map<Long, List<StorageUnitMeta>> storageUnitsMap = metaManager.getStorageUnits().stream().filter(e -> !e.isDummy()).collect(Collectors.groupingBy(StorageUnitMeta::getStorageEngineId));
+        // discard、dummy 的分片不需要迁移，只迁移很正常状态的分片
+        Map<Long, List<StorageUnitMeta>> storageUnitsMap = metaManager.getStorageUnits().stream().filter(e -> !e.isDummy()).filter(e -> e.getState() != StorageUnitState.DISCARD).collect(Collectors.groupingBy(StorageUnitMeta::getStorageEngineId));
         List<StorageUnitMeta> storageUnits = storageUnitsMap.get(sourceStorageId);
 
         PriorityQueue<StoragePriority> storagePriorities = new PriorityQueue<>();

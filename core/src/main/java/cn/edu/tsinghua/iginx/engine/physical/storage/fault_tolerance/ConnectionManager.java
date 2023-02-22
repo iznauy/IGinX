@@ -34,6 +34,7 @@ import cn.edu.tsinghua.iginx.metadata.sync.proposal.SyncVote;
 import cn.edu.tsinghua.iginx.metadata.sync.protocol.NetworkException;
 import cn.edu.tsinghua.iginx.metadata.sync.protocol.SyncProtocol;
 import cn.edu.tsinghua.iginx.metadata.sync.protocol.VoteExpiredException;
+import cn.edu.tsinghua.iginx.migration.storage.StorageMigrationExecutor;
 import cn.edu.tsinghua.iginx.utils.JsonUtils;
 import cn.hutool.core.collection.ConcurrentHashSet;
 import org.slf4j.Logger;
@@ -65,6 +66,8 @@ public class ConnectionManager {
     private final Map<Long, Connector> connectors;
 
     private final Set<Long> blockedStorages;
+
+    private final Set<Long> removedStorages;
 
     private final Set<Long> inVotes;
 
@@ -98,10 +101,13 @@ public class ConnectionManager {
             if (content.isAlive()) {
                 return;
             }
-            // TODO: storage engine will be remove from cluster
             logger.info("remove storage " + id + " from cluster");
             IStorageWrapper wrapper = (IStorageWrapper) StoragePhysicalTaskExecutor.getInstance().getStorageManager().getStorage(id).k;
             wrapper.setBlocked(true);
+            // 开启一个迁移任务，把这个数据给迁移走，这里可能会 race，但是总有一个会成功，对外话术就是，所有的节点都会尝试开启
+            if (after.getProposer() == iMetaManager.getIginxId()) {
+                StorageMigrationExecutor.getInstance().migration(content.getId(), false, false);
+            }
         }
     };
 
@@ -145,6 +151,7 @@ public class ConnectionManager {
         this.initProtocols();
         lock = new ReentrantReadWriteLock();
         blockedStorages = new ConcurrentHashSet<>();
+        removedStorages = new ConcurrentHashSet<>();
         inVotes = new ConcurrentHashSet<>();
         connectors = new HashMap<>();
         updatedConnectors = new HashSet<>();
@@ -179,6 +186,10 @@ public class ConnectionManager {
         }
         connectors.put(id, connector);
         lock.writeLock().unlock();
+    }
+
+    public void removeConnector(long id) {
+        removedStorages.add(id);
     }
 
     private void checkAndVoteForLossConnection(String key, long id) {
@@ -234,6 +245,10 @@ public class ConnectionManager {
 
         @Override
         public void run() {
+            if (removedStorages.contains(id)) {
+                logger.info("storage {} has been removed, we doesn't need to check alive.", id);
+                return;
+            }
             logger.info("scheduled test connection for " + id);
             if (inVotes.contains(id)) {
                 logger.info("don't need to check connection for " + id + ", because it is in vote!");

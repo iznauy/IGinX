@@ -29,6 +29,7 @@ import cn.edu.tsinghua.iginx.engine.physical.optimizer.ReplicaDispatcher;
 import cn.edu.tsinghua.iginx.engine.physical.storage.IStorage;
 import cn.edu.tsinghua.iginx.engine.physical.storage.StorageManager;
 import cn.edu.tsinghua.iginx.engine.physical.storage.domain.Timeseries;
+import cn.edu.tsinghua.iginx.engine.physical.storage.fault_tolerance.ConnectionManager;
 import cn.edu.tsinghua.iginx.engine.physical.storage.queue.StoragePhysicalTaskQueue;
 import cn.edu.tsinghua.iginx.engine.physical.storage.utils.TagKVUtils;
 import cn.edu.tsinghua.iginx.engine.physical.task.GlobalPhysicalTask;
@@ -66,6 +67,8 @@ public class StoragePhysicalTaskExecutor {
     private final IMetaManager metaManager = DefaultMetaManager.getInstance();
 
     private final StorageManager storageManager = new StorageManager(metaManager.getStorageEngineList());
+
+    private final ConnectionManager connectionManager = ConnectionManager.getInstance();
 
     private final Map<String, StoragePhysicalTaskQueue> storageTaskQueues = new ConcurrentHashMap<>();
 
@@ -159,9 +162,15 @@ public class StoragePhysicalTaskExecutor {
                                             if (replicaId.equals(id)) {
                                                 continue;
                                             }
+                                            String targetReplicaId = getTargetStorageUnit(replicaId);
+                                            if (!Objects.equals(targetReplicaId, replicaId)) {
+                                                if (replicaIds.contains(targetReplicaId)) {
+                                                    continue;
+                                                }
+                                            }
                                             StoragePhysicalTask replicaTask = new StoragePhysicalTask(task.getOperators(), task.getContext(), false, false);
-                                            storageTaskQueues.get(replicaId).addTask(replicaTask);
-                                            logger.info("broadcasting task " + task + " to " + replicaId);
+                                            storageTaskQueues.get(targetReplicaId).addTask(replicaTask);
+                                            logger.info("broadcasting task " + task + " to " + targetReplicaId);
                                         }
                                     }
                                 }
@@ -178,6 +187,11 @@ public class StoragePhysicalTaskExecutor {
             if (before == null && after != null) { // 新增加存储，处理这种事件，其他事件暂时不处理
                 if (after.getCreatedBy() != metaManager.getIginxId()) {
                     storageManager.addStorage(after);
+                }
+            }
+            if (before != null && after != null) {
+                if (!before.isRemoved() && after.isRemoved() && ConfigDescriptor.getInstance().getConfig().isEnableStorageHeartbeat()) {
+                    connectionManager.removeConnector(after.getId());
                 }
             }
         };
@@ -293,7 +307,7 @@ public class StoragePhysicalTaskExecutor {
             return;
         }
         StorageUnitMeta masterStorageUnit = task.getTargetFragment().getMasterStorageUnit();
-        List<StorageUnitMeta> replicas = masterStorageUnit.getReplicas();
+        List<StorageUnitMeta> replicas = masterStorageUnit.getReplicas(); // TODO: fix
         if (replicas == null || replicas.isEmpty()) {
             return;
         }
@@ -313,6 +327,15 @@ public class StoragePhysicalTaskExecutor {
 
     public StorageManager getStorageManager() {
         return storageManager;
+    }
+
+    public static String getTargetStorageUnit(String storageUnitId) {
+        StorageUnitMeta storageUnit = DefaultMetaManager.getInstance().getStorageUnit(storageUnitId);
+        while (storageUnit.getState() == StorageUnitState.DISCARD) {
+            storageUnitId = storageUnit.getMigrationTo();
+            storageUnit = DefaultMetaManager.getInstance().getStorageUnit(storageUnitId);
+        }
+        return storageUnitId;
     }
 
 }

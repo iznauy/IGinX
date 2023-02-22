@@ -78,11 +78,11 @@ public class LossConnectionVoteListener implements VoteListener {
         } catch (NetworkException | ExecutionException e) {
             logger.error("end proposal failure: ", e);
         }
-        logger.info("end proposal success for " + key);
+        logger.info("make proposal decision success for " + key + " success");
     }
 
     @Override
     public void end(String key) {
-        logger.info("current timestamp: " + System.currentTimeMillis() + ", end loss connection vote for " + key);
+        logger.info("current timestamp: " + System.currentTimeMillis() + ", end loss connection proposal and listen for " + key);
     }
 }
