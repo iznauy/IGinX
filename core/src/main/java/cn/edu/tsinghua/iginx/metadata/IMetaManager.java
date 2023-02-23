@@ -51,7 +51,7 @@ public interface IMetaManager {
 
     boolean deleteMigrationPlan(long id);
 
-    Map<String, String> startMigrationStorageUnits(Map<String, Long> migrationMap);
+    Map<String, String> startMigrationStorageUnits(Map<String, Long> migrationMap, boolean migrationData);
 
     boolean finishMigrationStorageUnit(String storageUnitId, boolean migrationData);
 

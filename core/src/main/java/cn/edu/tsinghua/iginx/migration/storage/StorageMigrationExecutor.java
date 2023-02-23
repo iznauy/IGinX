@@ -56,29 +56,32 @@ public class StorageMigrationExecutor {
                 }
             }
 
-            Map<String, String> storageUnitMigrationMap = metaManager.startMigrationStorageUnits(plan.getMigrationMap());
+            Map<String, String> storageUnitMigrationMap = metaManager.startMigrationStorageUnits(plan.getMigrationMap(), plan.isMigrationData());
+            if (storageUnitMigrationMap == null) {
+                logger.info("start migration plan " + plan + " failure");
+                return false;
+            }
             List<Callable<Boolean>> tasks = new ArrayList<>();
 
             for (String sourceStorageUnitId: storageUnitMigrationMap.keySet()) {
                 String targetStorageUnitId = storageUnitMigrationMap.get(sourceStorageUnitId);
                 MigrationPolicy migrationPolicy = MigrationManager.getInstance().getMigration();
                 tasks.add(() -> {
+                    try {
+                        logger.info("migration is so short, so we sleep 10 s");
+                        Thread.sleep(1000 * 10);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                     if (migrationData) {
                         logger.info("call migration from {} tio {}", sourceStorageUnitId, targetStorageUnitId);
                         if (!migrationPolicy.migrationData(sourceStorageUnitId, targetStorageUnitId)) {
                             return false;
                         }
-                        try {
-                            logger.info("migration is so short, so we sleep 10 s");
-                            Thread.sleep(1000 * 10);
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
                         return metaManager.finishMigrationStorageUnit(sourceStorageUnitId, true);
+                    } else {
+                        return migrationPolicy.migrationData(sourceStorageUnitId, targetStorageUnitId);
                     }
-                    // 这里指的是非原址迁移
-
-                    return metaManager.finishMigrationStorageUnit(sourceStorageUnitId, false);
                 });
             }
 
@@ -93,6 +96,11 @@ public class StorageMigrationExecutor {
             } catch (InterruptedException | ExecutionException e) {
                 e.printStackTrace();
                 return false;
+            }
+            if (!migrationData) {
+                for (String storageUnitId: plan.getMigrationMap().keySet()) {
+                    metaManager.finishMigrationStorageUnit(storageUnitId, false);
+                }
             }
             if (!metaManager.deleteMigrationPlan(storageId)) {
                 return false;

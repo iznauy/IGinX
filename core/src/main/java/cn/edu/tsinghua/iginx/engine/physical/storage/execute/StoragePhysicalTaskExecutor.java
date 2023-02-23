@@ -302,6 +302,12 @@ public class StoragePhysicalTaskExecutor {
         }
     }
 
+    public void directCommit(List<StoragePhysicalTask> tasks) {
+        for (StoragePhysicalTask task : tasks) {
+            storageTaskQueues.get(task.getStorageUnit()).addTask(task); // 在优化策略提供了选择器的情况下，利用选择器提供的结果
+        }
+    }
+
     private void genBackUpStorageUnits(StoragePhysicalTask task) {
         if (!task.canBackUp()) {
             return;

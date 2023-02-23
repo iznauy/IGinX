@@ -28,6 +28,7 @@ import cn.edu.tsinghua.iginx.metadata.entity.TimeInterval;
 import cn.edu.tsinghua.iginx.metadata.entity.TimeSeriesRange;
 import cn.edu.tsinghua.iginx.utils.Pair;
 
+import java.util.Collections;
 import java.util.List;
 
 public class IStorageWrapper implements IStorage {
@@ -63,7 +64,7 @@ public class IStorageWrapper implements IStorage {
     @Override
     public List<Timeseries> getTimeSeries() throws PhysicalException {
         if (blocked) {
-            throw new PhysicalTaskExecuteFailureException(ERROR_MESSAGE);
+            return Collections.emptyList();
         }
         return storage.getTimeSeries();
     }

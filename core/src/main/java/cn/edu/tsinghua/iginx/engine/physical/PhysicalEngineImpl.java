@@ -110,7 +110,11 @@ public class PhysicalEngineImpl implements PhysicalEngine {
                     projectPhysicalTask);
                 projectPhysicalTask.setFollowerTask(selectPhysicalTask);
 
-                storageTaskExecutor.commit(projectPhysicalTask);
+                if (migration.getSourceStorageUnitId() != null) {
+                    storageTaskExecutor.commitWithTargetStorageUnitId(projectPhysicalTask, migration.getSourceStorageUnitId());
+                } else {
+                    storageTaskExecutor.commit(projectPhysicalTask);
+                }
 
                 TaskExecuteResult selectResult = selectPhysicalTask.getResult();
                 RowStream selectRowStream = selectResult.getRowStream();

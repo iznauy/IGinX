@@ -22,16 +22,9 @@ import cn.edu.tsinghua.iginx.migration.recover.MigrationLogger;
 import cn.edu.tsinghua.iginx.policy.IPolicy;
 import cn.edu.tsinghua.iginx.policy.PolicyManager;
 import cn.edu.tsinghua.iginx.utils.Pair;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
+
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Queue;
-import java.util.Set;
-import java.util.SortedSet;
-import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import org.slf4j.Logger;
 
@@ -456,12 +449,34 @@ public abstract class MigrationPolicy {
       StorageUnitMeta targetStorageUnit = DefaultMetaManager.getInstance().getStorageUnit(targetStorageUnitId);
 
       logger.info("migration data from du {} to du {}", sourceStorageUnitId, targetStorageUnitId);
-      List<FragmentMeta> fragmentMetas = DefaultMetaManager.getInstance().getFragmentsByStorageUnit(sourceStorageUnit.getMasterId());
+      List<FragmentMeta> fragmentMetas;
+      if (sourceStorageUnit.isMaster()) {
+        fragmentMetas = DefaultMetaManager.getInstance().getFragmentsByStorageUnit(sourceStorageUnit.getId());
+      } else {
+        List<StorageUnitMeta> units = DefaultMetaManager.getInstance().getStorageUnits();
+        String masterId = sourceStorageUnitId;
+        boolean flag = false;
+        for (StorageUnitMeta unit: units) {
+          if (unit.isMaster() && !Objects.equals(unit.getId(), targetStorageUnitId)) {
+            for (StorageUnitMeta replica: unit.getReplicas()) {
+              if (Objects.equals(replica.getId(), sourceStorageUnitId)) {
+                masterId = unit.getId();
+                flag = true;
+                break;
+              }
+            }
+          }
+          if (flag) {
+            break;
+          }
+        }
+        fragmentMetas = DefaultMetaManager.getInstance().getFragmentsByStorageUnit(masterId);
+      }
 
       Set<String> pathRegexSet = new HashSet<>();
       ShowTimeSeries showTimeSeries = new ShowTimeSeries(new GlobalSource(),
               pathRegexSet, null, Integer.MAX_VALUE, 0);
-      RowStream rowStream = physicalEngine.execute(null, showTimeSeries);
+      RowStream rowStream = physicalEngine. execute(null, showTimeSeries);
       SortedSet<String> pathSet = new TreeSet<>();
       while (rowStream.hasNext()) {
         Row row = rowStream.next();
@@ -481,7 +496,7 @@ public abstract class MigrationPolicy {
       // 开始迁移数据
       for (FragmentMeta fragmentMeta: fragmentMetas) {
         Migration migration = new Migration(new GlobalSource(), sourceStorageUnit.getStorageEngineId(), targetStorageUnit.getStorageEngineId(),
-                fragmentMeta, new ArrayList<>(pathSet), targetStorageUnit);
+                fragmentMeta, new ArrayList<>(pathSet), sourceStorageUnitId, targetStorageUnit);
         logger.info("migration data from du {} to du {}, path = {}", sourceStorageUnit.getId(), targetStorageUnit.getId(), pathSet);
         physicalEngine.execute(null, migration);
       }
