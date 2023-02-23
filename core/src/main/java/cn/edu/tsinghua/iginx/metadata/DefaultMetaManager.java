@@ -475,7 +475,7 @@ public class DefaultMetaManager implements IMetaManager {
                         // 这里需要选出来一个副本，作为数据迁移的源头
                         if (storageUnit.isMaster()) {
                             if (storageUnit.getReplicas() != null && storageUnit.getReplicas().size() > 0) {
-                                migrationStorageUnitMap.put(storageUnit.getReplicas().get(0).getId(), newStorageUnitId);
+                                migrationStorageUnitMap.put(storageUnit.getReplicas().get(storageUnit.getReplicas().size() - 1).getId(), newStorageUnitId);
                             }
                         } else { // 失效的分片是副本的话，只需要找到主本，使用主本作为数据源即可
                             migrationStorageUnitMap.put(storageUnit.getMasterId(), newStorageUnitId);
