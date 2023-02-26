@@ -81,7 +81,7 @@ public class NaiveOperatorMemoryExecutor implements OperatorMemoryExecutor {
             case Rename:
                 return executeRename((Rename) operator, transformToTable(stream));
             case Reorder:
-                return executeReorder((Reorder) operator, transformToTable(stream));
+                return stream; // RE_ORDER_DO_NOTHING
             case AddSchemaPrefix:
                 return executeAddSchemaPrefix((AddSchemaPrefix) operator, transformToTable(stream));
             case Load:
