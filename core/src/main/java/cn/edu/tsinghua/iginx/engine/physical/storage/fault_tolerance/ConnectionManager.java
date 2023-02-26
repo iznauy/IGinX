@@ -246,10 +246,10 @@ public class ConnectionManager {
         @Override
         public void run() {
             if (removedStorages.contains(id)) {
-                logger.info("storage {} has been removed, we doesn't need to check alive.", id);
+                //logger.info("storage {} has been removed, we doesn't need to check alive.", id);
                 return;
             }
-            logger.info("scheduled test connection for " + id);
+            //logger.info("scheduled test connection for " + id);
             if (inVotes.contains(id)) {
                 logger.info("don't need to check connection for " + id + ", because it is in vote!");
                 return;
@@ -281,7 +281,7 @@ public class ConnectionManager {
             }
             for (int i = 0; i < maxRetryTimes; i++) {
                 if (connector.echo(heartbeatTimeout, TimeUnit.MILLISECONDS)) {
-                    logger.info("not loss connection for " + id + ", curr timestamp = " + System.currentTimeMillis());
+                    //logger.info("not loss connection for " + id + ", curr timestamp = " + System.currentTimeMillis());
                     if (block) {
                         // start proposal for restore storage status
                         SyncProposal proposal = new SyncProposal(iMetaManager.getIginxId(), JsonUtils.toJson(new RestoreConnectionProposalContent(id)));

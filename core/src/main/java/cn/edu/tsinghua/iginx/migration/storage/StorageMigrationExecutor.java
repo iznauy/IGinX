@@ -112,7 +112,11 @@ public class StorageMigrationExecutor {
 
         @Override
         public void run() {
+            logger.info("Migration For Storage {} Start!", storageId);
+            long start = System.currentTimeMillis();
             call();
+            long span = System.currentTimeMillis() - start;
+            logger.info("Migration For Storage {} Finished! Span = {}", storageId, span);
         }
     }
 

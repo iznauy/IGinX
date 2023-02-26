@@ -654,7 +654,6 @@ public class IoTDBStorage implements IStorage {
                 try {
                     sessionPool.insertTablets(tabletsMap.get(entry.getKey()));
                 } catch (IoTDBConnectionException | StatementExecutionException e) {
-                    logger.error(e.getMessage());
                     return e;
                 }
 
