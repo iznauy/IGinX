@@ -20,4 +20,9 @@ public class Load extends AbstractUnaryOperator {
     public String getKey() {
         return key;
     }
+
+    @Override
+    public String getInfo() {
+        return "Load: " + key;
+    }
 }
