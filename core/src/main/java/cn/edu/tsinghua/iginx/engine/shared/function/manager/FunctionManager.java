@@ -22,6 +22,7 @@ import cn.edu.tsinghua.iginx.conf.Config;
 import cn.edu.tsinghua.iginx.conf.ConfigDescriptor;
 import cn.edu.tsinghua.iginx.engine.shared.function.Function;
 import cn.edu.tsinghua.iginx.engine.shared.function.system.*;
+import cn.edu.tsinghua.iginx.engine.shared.function.tsbs.Transposition;
 import cn.edu.tsinghua.iginx.engine.shared.function.udf.python.PyUDAF;
 import cn.edu.tsinghua.iginx.engine.shared.function.udf.python.PyUDSF;
 import cn.edu.tsinghua.iginx.engine.shared.function.udf.python.PyUDTF;
@@ -74,6 +75,9 @@ public class FunctionManager {
         registerFunction(Min.getInstance());
         registerFunction(Sum.getInstance());
         registerFunction(ArithmeticExpr.getInstance());
+
+        // for tsbs
+        registerFunction(Transposition.getInstance());
     }
 
     private void initBasicUDFFunctions() {

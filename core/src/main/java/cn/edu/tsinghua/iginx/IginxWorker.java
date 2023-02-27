@@ -418,6 +418,7 @@ public class IginxWorker implements IService.Iface {
     @Override
     public ExecuteSqlResp executeSql(ExecuteSqlReq req) {
         StatementExecutor executor = StatementExecutor.getInstance();
+        logger.info("[Long Query Experiment] Execute SQL From Shell: " + req.getStatement());
         RequestContext ctx = contextBuilder.build(req);
         executor.execute(ctx);
         return ctx.takeResult().getExecuteSqlResp();
@@ -560,6 +561,7 @@ public class IginxWorker implements IService.Iface {
 
     @Override
     public ExecuteStatementResp executeStatement(ExecuteStatementReq req) {
+        logger.info("[Long Query Experiment] Execute SQL From Benchmark: " + req.getStatement());
         StatementExecutor executor = StatementExecutor.getInstance();
         RequestContext ctx = contextBuilder.build(req);
         queryManager.registerQuery(ctx.getId(), ctx);

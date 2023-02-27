@@ -7,8 +7,9 @@ import cn.edu.tsinghua.iginx.engine.shared.data.read.Field;
 import cn.edu.tsinghua.iginx.engine.shared.data.read.Header;
 import cn.edu.tsinghua.iginx.engine.shared.data.read.Row;
 import cn.edu.tsinghua.iginx.engine.shared.data.read.RowStream;
-import cn.edu.tsinghua.iginx.engine.shared.function.FunctionType;
-import cn.edu.tsinghua.iginx.engine.shared.function.MappingType;
+import cn.edu.tsinghua.iginx.engine.shared.function.*;
+import cn.edu.tsinghua.iginx.engine.shared.function.manager.FunctionManager;
+import cn.edu.tsinghua.iginx.engine.shared.function.tsbs.Transposition;
 import cn.edu.tsinghua.iginx.engine.shared.function.udf.UDSF;
 import cn.edu.tsinghua.iginx.engine.shared.function.udf.utils.TypeUtils;
 import cn.edu.tsinghua.iginx.thrift.DataType;
@@ -30,28 +31,21 @@ public class PyUDSF implements UDSF {
 
     private final String funcName;
 
+    private MappingFunction function = null;
+
     public PyUDSF(PythonInterpreter interpreter, String funcName) {
         this.interpreter = interpreter;
         this.funcName = funcName;
-    }
-
-    @Override
-    public FunctionType getFunctionType() {
-        return FunctionType.UDF;
-    }
-
-    @Override
-    public MappingType getMappingType() {
-        return MappingType.Mapping;
-    }
-
-    @Override
-    public String getIdentifier() {
-        return PY_UDSF;
+        if (funcName.equals("transposition")) {
+            this.function = Transposition.getInstance();
+        }
     }
 
     @Override
     public RowStream transform(RowStream rows, Map<String, Value> params) throws Exception {
+        if (function != null) {
+            return function.transform(rows, params);
+        }
         if (!isLegal(params)) {
                 throw new IllegalArgumentException("unexpected params for PyUDSF.");
         }
@@ -151,6 +145,21 @@ public class PyUDSF implements UDSF {
 
         Value paths = params.get(PARAM_PATHS);
         return paths != null && paths.getDataType() == DataType.BINARY;
+    }
+
+    @Override
+    public FunctionType getFunctionType() {
+        return FunctionType.UDF;
+    }
+
+    @Override
+    public MappingType getMappingType() {
+        return MappingType.Mapping;
+    }
+
+    @Override
+    public String getIdentifier() {
+        return PY_UDSF;
     }
 
     @Override
