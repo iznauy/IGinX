@@ -43,6 +43,8 @@ public class Transposition implements MappingFunction {
         String[] levels = params.get(PARAM_PATHS).getBinaryVAsString().split("\\.");
         String target = levels[levels.length - 1];
 
+        boolean allColumn = target.equals("*");
+
         boolean hasKey = rows.getHeader().hasKey();
         List<Pair<byte[], byte[]>> fields = rows.getHeader().getFields().stream().map(e -> {
             String name = e.getName();
@@ -52,7 +54,9 @@ public class Transposition implements MappingFunction {
 
         List<Field> targetFields = new ArrayList<>();
         targetFields.add(new Field("truck", DataType.BINARY));
-        targetFields.add(new Field("name", DataType.BINARY));
+        if (allColumn) {
+            targetFields.add(new Field("name", DataType.BINARY));
+        }
         targetFields.add(new Field("value", DataType.DOUBLE));
 
         Header header = new Header(hasKey? Field.KEY : null, targetFields);
@@ -62,17 +66,28 @@ public class Transposition implements MappingFunction {
             Row row = rows.next();
             for (int i = 0; i < fields.size(); i++) {
                 Pair<byte[], byte[]> pair = fields.get(i);
-                if (!target.equals("*") && !target.equals(new String(pair.v))) {
+                if (!allColumn && !target.equals(new String(pair.v))) {
                     continue;
                 }
-                Object[] values = new Object[3];
-                values[0] = pair.k;
-                values[1] = pair.v;
-                values[2] = row.getValue(i);
-                if (hasKey) {
-                    rowList.add(new Row(header, row.getKey(), values));
+                if (allColumn) {
+                    Object[] values = new Object[3];
+                    values[0] = pair.k;
+                    values[1] = pair.v;
+                    values[2] = row.getValue(i);
+                    if (hasKey) {
+                        rowList.add(new Row(header, row.getKey(), values));
+                    } else {
+                        rowList.add(new Row(header, values));
+                    }
                 } else {
-                    rowList.add(new Row(header, values));
+                    Object[] values = new Object[2];
+                    values[0] = pair.k;
+                    values[1] = row.getValue(i);
+                    if (hasKey) {
+                        rowList.add(new Row(header, row.getKey(), values));
+                    } else {
+                        rowList.add(new Row(header, values));
+                    }
                 }
             }
         }

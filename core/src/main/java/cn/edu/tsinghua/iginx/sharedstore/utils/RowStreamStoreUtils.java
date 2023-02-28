@@ -10,6 +10,7 @@ import cn.edu.tsinghua.iginx.sharedstore.SharedStore;
 import cn.edu.tsinghua.iginx.sharedstore.SharedStoreManager;
 import cn.edu.tsinghua.iginx.thrift.DataType;
 import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONArray;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,6 +77,14 @@ public class RowStreamStoreUtils {
                     values[i] = ((Number) values[i]).longValue();
                 } else if (row.getField(i).getType() == DataType.DOUBLE) {
                     values[i] = ((Number) values[i]).doubleValue();
+                } else if (row.getField(i).getType() == DataType.BINARY) {
+                    JSONArray jsonArr = (JSONArray) values[i];
+                    byte[] arr = new byte[jsonArr.size()];
+                    for (int j = 0; j < jsonArr.size(); j++) {
+                        int value = jsonArr.getInteger(j);
+                        arr[j] = (byte) value;
+                    }
+                    values[i] = arr;
                 }
             }
         }
