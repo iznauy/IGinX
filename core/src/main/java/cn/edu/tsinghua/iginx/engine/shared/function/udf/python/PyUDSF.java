@@ -8,7 +8,6 @@ import cn.edu.tsinghua.iginx.engine.shared.data.read.Header;
 import cn.edu.tsinghua.iginx.engine.shared.data.read.Row;
 import cn.edu.tsinghua.iginx.engine.shared.data.read.RowStream;
 import cn.edu.tsinghua.iginx.engine.shared.function.*;
-import cn.edu.tsinghua.iginx.engine.shared.function.manager.FunctionManager;
 import cn.edu.tsinghua.iginx.engine.shared.function.tsbs.Transposition;
 import cn.edu.tsinghua.iginx.engine.shared.function.udf.UDSF;
 import cn.edu.tsinghua.iginx.engine.shared.function.udf.utils.TypeUtils;
@@ -16,10 +15,8 @@ import cn.edu.tsinghua.iginx.thrift.DataType;
 import cn.edu.tsinghua.iginx.utils.StringUtils;
 import pemja.core.PythonInterpreter;
 
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import static cn.edu.tsinghua.iginx.engine.shared.Constants.*;
 

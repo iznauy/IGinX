@@ -19,6 +19,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static cn.edu.tsinghua.iginx.engine.shared.Constants.PARAM_PATHS;
+
 public class Transposition implements MappingFunction {
 
     @Override
@@ -38,6 +40,9 @@ public class Transposition implements MappingFunction {
 
     @Override
     public RowStream transform(RowStream rows, Map<String, Value> params) throws Exception {
+        String[] levels = params.get(PARAM_PATHS).getBinaryVAsString().split("\\.");
+        String target = levels[levels.length - 1];
+
         boolean hasKey = rows.getHeader().hasKey();
         List<Pair<byte[], byte[]>> fields = rows.getHeader().getFields().stream().map(e -> {
             String name = e.getName();
@@ -56,9 +61,13 @@ public class Transposition implements MappingFunction {
         while (rows.hasNext()) {
             Row row = rows.next();
             for (int i = 0; i < fields.size(); i++) {
+                Pair<byte[], byte[]> pair = fields.get(i);
+                if (!target.equals("*") && !target.equals(new String(pair.v))) {
+                    continue;
+                }
                 Object[] values = new Object[3];
-                values[0] = fields.get(i).k;
-                values[1] = fields.get(i).v;
+                values[0] = pair.k;
+                values[1] = pair.v;
                 values[2] = row.getValue(i);
                 if (hasKey) {
                     rowList.add(new Row(header, row.getKey(), values));
