@@ -99,18 +99,18 @@ public class PyUDSF implements UDSF {
             }
             data.add(rowData);
         }
-        Object[] res = (Object[]) interpreter.invokeMethod(UDF_CLASS, UDF_FUNC, data);
-        if (res == null || res.length == 0) {
+        List<List<Object>> res = (List<List<Object>>) interpreter.invokeMethod(UDF_CLASS, UDF_FUNC, data);
+        if (res == null || res.size() == 0) {
             return Table.EMPTY_TABLE;
         }
 
-        Object[] firstRow = (Object[]) res[0];
-        Object[] secondRow = (Object[]) res[1];
+        List<Object> firstRow = res.get(0);
+        List<Object> secondRow = res.get(1);
         Field key = null;
         List<Field> fields = new ArrayList<>();
-        for (int i = 0; i < firstRow.length; i++) {
-            String name = (String) firstRow[i];
-            DataType type = TypeUtils.getDataTypeFromTypeValue(secondRow[i]);
+        for (int i = 0; i < firstRow.size(); i++) {
+            String name = (String) firstRow.get(i);
+            DataType type = TypeUtils.getDataTypeFromTypeValue(secondRow.get(i));
             if (i == 0 && name.equals(GlobalConstant.KEY_NAME)) {
                 key = Field.KEY;
                 continue;
@@ -121,11 +121,19 @@ public class PyUDSF implements UDSF {
 
         Header header = new Header(key, fields);
         List<Row> rowList = new ArrayList<>();
-        for (int i = 2; i < res.length; i++) {
-            Object[] values = (Object[]) res[i];
+        for (int i = 2; i < res.size(); i++) {
+            List<Object> valueList = res.get(i);
             if (key != null) {
-                rowList.add(new Row(header, (long) values[0], Arrays.copyOfRange(values, 1, values.length)));
+                Object[] values = new Object[valueList.size() - 1];
+                for (int j = 1; j < valueList.size(); j++) {
+                    values[j - 1] = valueList.get(j);
+                }
+                rowList.add(new Row(header, (long) valueList.get(0), values));
             } else {
+                Object[] values = new Object[valueList.size()];
+                for (int j = 0; j < valueList.size(); j++) {
+                    values[j] = valueList.get(j);
+                }
                 rowList.add(new Row(header, values));
             }
         }
