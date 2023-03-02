@@ -19,27 +19,32 @@ public class IoTDBConnector implements Connector {
 
     private static final Logger logger = LoggerFactory.getLogger(IoTDBConnector.class);
 
-    private static final ExecutorService service = Executors.newSingleThreadExecutor();
+    private static final ExecutorService service = Executors.newFixedThreadPool(20);
+
+    private final long id;
 
     private Session session;
 
-    public IoTDBConnector(String ip, int port, String username, String password) {
+    public IoTDBConnector(long id, String ip, int port, String username, String password) {
+        this.id = id;
         this.session = new Session(ip, port, username, password);
     }
 
     @Override
     public boolean echo(long timeout, TimeUnit unit) {
+        logger.info("[FaultTolerance][IoTDBConnector][id={}] echo start...", id);
         Future<Boolean> future = service.submit(() -> {
             try {
                 session.open();
                 SessionDataSet dataSet = session.executeQueryStatement("show version");
                 dataSet.closeOperationHandle();
                 session.close();
+                logger.info("[FaultTolerance][IoTDBConnector][id={}] echo connection success...", id);
             } catch (IoTDBConnectionException e) {
-                logger.error("connect to iotdb error: " + e.getMessage());
+                logger.error("[FaultTolerance][IoTDBConnector][id={}] echo execute failure {}", id, e);
                 return false;
             } catch (StatementExecutionException e) {
-                logger.error("execute statement error: " + e.getMessage());
+                logger.error("[FaultTolerance][IoTDBConnector][id={}] echo statement failure {}, but connection success", id, e);
             }
             return true;
         });
@@ -47,7 +52,7 @@ public class IoTDBConnector implements Connector {
             return future.get(timeout, unit);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             future.cancel(true);
-            logger.error("connection timeout: ", e);
+            logger.info("[FaultTolerance][IoTDBConnector][id={}] echo interrupt or timeout", id);
         }
         return false;
     }

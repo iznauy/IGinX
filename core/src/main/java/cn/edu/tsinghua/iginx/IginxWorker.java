@@ -870,7 +870,7 @@ public class IginxWorker implements IService.Iface {
     }
 
     @Override
-    public LoadAvailableEndPointsResp loadAvailableEndPoints(LoadAvailableEndPointsReq req) throws TException {
+    public LoadAvailableEndPointsResp loadAvailableEndPoints(LoadAvailableEndPointsReq req)  {
         if (!sessionManager.checkSession(req.getSessionId(), AuthType.Cluster)) {
             return new LoadAvailableEndPointsResp(RpcUtils.ACCESS_DENY);
         }

@@ -55,6 +55,7 @@ import cn.edu.tsinghua.iginx.utils.Pair;
 import cn.edu.tsinghua.iginx.utils.StringUtils;
 import org.apache.iotdb.rpc.IoTDBConnectionException;
 import org.apache.iotdb.rpc.StatementExecutionException;
+import org.apache.iotdb.session.Config;
 import org.apache.iotdb.session.Session;
 import org.apache.iotdb.session.pool.SessionDataSetWrapper;
 import org.apache.iotdb.session.pool.SessionPool;
@@ -149,12 +150,17 @@ public class IoTDBStorage implements IStorage {
         String username = extraParams.getOrDefault(USERNAME, DEFAULT_USERNAME);
         String password = extraParams.getOrDefault(PASSWORD, DEFAULT_PASSWORD);
         int sessionPoolSize = Integer.parseInt(extraParams.getOrDefault(SESSION_POOL_SIZE, DEFAULT_SESSION_POOL_SIZE));
-        return new SessionPool(meta.getIp(), meta.getPort(), username, password, sessionPoolSize);
+        return new SessionPool(meta.getIp(), meta.getPort(), username, password, sessionPoolSize, Config.DEFAULT_FETCH_SIZE,
+                60_000,
+                false,
+                null,
+                Config.DEFAULT_CACHE_LEADER_MODE,
+                500);
     }
 
     @Override
     public Connector getConnector() {
-        return new IoTDBConnector(this.meta.getIp(), this.meta.getPort(),
+        return new IoTDBConnector(this.meta.getId(), this.meta.getIp(), this.meta.getPort(),
                 this.meta.getExtraParams().getOrDefault(USERNAME, DEFAULT_USERNAME),
                 this.meta.getExtraParams().getOrDefault(PASSWORD, DEFAULT_PASSWORD));
     }

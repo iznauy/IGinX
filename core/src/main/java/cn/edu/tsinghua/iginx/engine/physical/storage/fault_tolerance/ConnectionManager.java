@@ -79,9 +79,8 @@ public class ConnectionManager {
 
         @Override
         public void onCreate(String key, SyncProposal proposal) {
-            logger.info("receive proposal(key = " + key + ") create for loss connection: " + new String(JsonUtils.toJson(proposal)));
             LossConnectionProposalContent content = JsonUtils.fromJson(proposal.getContent(), LossConnectionProposalContent.class);
-
+            logger.info("[FaultTolerance][ConnectionManager][ProposalListener][iginx={}, id={}, key={}] receive loss connection proposal {}, now = {}", iMetaManager.getIginxId(), content.getId(), key, new String(JsonUtils.toJson(proposal)), System.currentTimeMillis());
             long id = content.getId();
             inVotes.add(id);
 
@@ -91,8 +90,8 @@ public class ConnectionManager {
 
         @Override
         public void onUpdate(String key, SyncProposal before, SyncProposal after) {
-            logger.info("receive proposal(key = " + key + ") update for loss connection: " + new String(JsonUtils.toJson(after)));
             LossConnectionProposalContent content = JsonUtils.fromJson(after.getContent(), LossConnectionProposalContent.class);
+            logger.info("[FaultTolerance][ConnectionManager][ProposalListener][iginx={}, id={}, key={}] receive loss connection proposal {}, now = {}", iMetaManager.getIginxId(), content.getId(), key, new String(JsonUtils.toJson(after)), System.currentTimeMillis());
             long id = content.getId();
             if (!content.isAlive()) {
                 blockedStorages.add(id);
@@ -101,11 +100,12 @@ public class ConnectionManager {
             if (content.isAlive()) {
                 return;
             }
-            logger.info("remove storage " + id + " from cluster");
+            logger.info("[FaultTolerance][ConnectionManager][ProposalListener][iginx={}, id={}, key={}] decide remove and block storage engine, now = {}", iMetaManager.getIginxId(), content.getId(), key, System.currentTimeMillis());
             IStorageWrapper wrapper = (IStorageWrapper) StoragePhysicalTaskExecutor.getInstance().getStorageManager().getStorage(id).k;
             wrapper.setBlocked(true);
             // 开启一个迁移任务，把这个数据给迁移走，这里可能会 race，但是总有一个会成功，对外话术就是，所有的节点都会尝试开启
             if (after.getProposer() == iMetaManager.getIginxId()) {
+                logger.info("[FaultTolerance][ConnectionManager][ProposalListener][iginx={}, id={}, key={}] submit migration task, now = {}", iMetaManager.getIginxId(), content.getId(), key, System.currentTimeMillis());
                 StorageMigrationExecutor.getInstance().migration(content.getId(), false, false);
             }
         }
@@ -245,13 +245,17 @@ public class ConnectionManager {
 
         @Override
         public void run() {
+            long iginxId = iMetaManager.getIginxId();
+            if (iginxId != 0L) {
+                return;
+            }
             if (removedStorages.contains(id)) {
                 //logger.info("storage {} has been removed, we doesn't need to check alive.", id);
                 return;
             }
             //logger.info("scheduled test connection for " + id);
             if (inVotes.contains(id)) {
-                logger.info("don't need to check connection for " + id + ", because it is in vote!");
+                //logger.info("don't need to check connection for " + id + ", because it is in vote!");
                 return;
             }
             boolean block = blockedStorages.contains(id);
@@ -262,6 +266,8 @@ public class ConnectionManager {
                 }
                 logger.info("try restore connection for " + id + " timely");
             }
+
+            logger.info("[FaultTolerance][ConnectionManager][iginx={}, id={}] check storage alive..., now = {}", iginxId, id, System.currentTimeMillis());
             ConnectionManager manager = ConnectionManager.this;
             int maxRetryTimes = ConfigDescriptor.getInstance().getConfig().getStorageHeartbeatMaxRetryTimes();
             long heartbeatTimeout = ConfigDescriptor.getInstance().getConfig().getStorageHeartbeatTimeout();
@@ -283,6 +289,7 @@ public class ConnectionManager {
                 if (connector.echo(heartbeatTimeout, TimeUnit.MILLISECONDS)) {
                     //logger.info("not loss connection for " + id + ", curr timestamp = " + System.currentTimeMillis());
                     if (block) {
+                        // will not reach this codes
                         // start proposal for restore storage status
                         SyncProposal proposal = new SyncProposal(iMetaManager.getIginxId(), JsonUtils.toJson(new RestoreConnectionProposalContent(id)));
                         boolean success;
@@ -297,14 +304,14 @@ public class ConnectionManager {
                             return;
                         }
                     }
+                    logger.info("[FaultTolerance][ConnectionManager][iginx={}, id={}] storage still alive", iginxId, id);
                     return;
                 }
-                logger.info("connection for " + id + " failure, retry cnt = " + i);
             }
             if (block) {
                 return;
             }
-            logger.error("loss connection for " + id + ", curr timestamp = " + System.currentTimeMillis());
+            logger.info("[FaultTolerance][ConnectionManager][iginx={}, id={}] storage loss connection, now = {}", iginxId, id, System.currentTimeMillis());
 
             // start proposal for check storage status
             SyncProposal proposal = new SyncProposal(iMetaManager.getIginxId(), JsonUtils.toJson(new LossConnectionProposalContent(id)));
@@ -312,14 +319,14 @@ public class ConnectionManager {
             try {
                 success = lossConnectionProtocol.startProposal(String.format(PROPOSAL_KEY, id), proposal, new LossConnectionVoteListener(iMetaManager.getIginxClusterSize(), proposal, lossConnectionProtocol));
             } catch (NetworkException e) {
-                logger.error("start loss connection proposal for " + id + " failure: ", e);
+                logger.error("[FaultTolerance][ConnectionManager][iginx={}, id={}] start loss connection proposal error: ", iginxId, id, e);
                 return;
             }
             if (!success) {
-                logger.warn("start loss connection proposal for " + id + " failure, due to race!");
+                logger.error("[FaultTolerance][ConnectionManager][iginx={}, id={}] start loss connection proposal error, due to race", iginxId, id);
                 return;
             }
-            logger.info("start loss proposal for " + id);
+            logger.error("[FaultTolerance][ConnectionManager][iginx={}, id={}] start loss connection proposal success ", iginxId, id);
         }
     }
 
