@@ -55,6 +55,7 @@ public class StorageMigrationExecutor {
                     return false;
                 }
             }
+            logger.info("[FaultTolerance][MigrationExecutor][iginx={}, id={}] data migration plan: {}", metaManager.getIginxId(), storageId, plan.getMigrationMap());
 
             Map<String, String> storageUnitMigrationMap = metaManager.startMigrationStorageUnits(plan.getMigrationMap(), plan.isMigrationData());
             if (storageUnitMigrationMap == null) {
@@ -112,11 +113,11 @@ public class StorageMigrationExecutor {
 
         @Override
         public void run() {
-            logger.info("Migration For Storage {} Start!", storageId);
+            logger.info("[FaultTolerance][MigrationExecutor][iginx={}, id={}] data migration start..", metaManager.getIginxId(), storageId);
             long start = System.currentTimeMillis();
             call();
             long span = System.currentTimeMillis() - start;
-            logger.info("Migration For Storage {} Finished! Span = {}", storageId, span);
+            logger.info("[FaultTolerance][MigrationExecutor][iginx={}, id={}] data migration finish, span = {}", metaManager.getIginxId(), storageId, span);
         }
     }
 

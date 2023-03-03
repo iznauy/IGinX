@@ -182,7 +182,7 @@ public class ConnectionManager {
             updatedConnectors.add(id);
         } else {
             scheduledService.scheduleWithFixedDelay(new HeartbeatTask(id, connector),
-                    0, ConfigDescriptor.getInstance().getConfig().getStorageHeartbeatInterval(), TimeUnit.MILLISECONDS);
+                    (long)(ConfigDescriptor.getInstance().getConfig().getStorageHeartbeatInterval() * random.nextDouble()), ConfigDescriptor.getInstance().getConfig().getStorageHeartbeatInterval(), TimeUnit.MILLISECONDS);
         }
         connectors.put(id, connector);
         lock.writeLock().unlock();
@@ -246,9 +246,9 @@ public class ConnectionManager {
         @Override
         public void run() {
             long iginxId = iMetaManager.getIginxId();
-            if (iginxId != 0L) {
-                return;
-            }
+//            if (iginxId != 0L) {
+//                return;
+//            }
             if (removedStorages.contains(id)) {
                 //logger.info("storage {} has been removed, we doesn't need to check alive.", id);
                 return;

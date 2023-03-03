@@ -155,7 +155,7 @@ public class IoTDBStorage implements IStorage {
                 false,
                 null,
                 Config.DEFAULT_CACHE_LEADER_MODE,
-                500);
+                3000);
     }
 
     @Override
@@ -348,6 +348,7 @@ public class IoTDBStorage implements IStorage {
     }
 
     private TaskExecuteResult executeInsertTask(String storageUnit, Insert insert) {
+        //long startTime = System.currentTimeMillis();
         DataView dataView = insert.getData();
         Exception e = null;
         switch (dataView.getRawDataType()) {
@@ -364,6 +365,8 @@ public class IoTDBStorage implements IStorage {
                 e = insertNonAlignedColumnRecords((ColumnDataView) dataView, storageUnit);
                 break;
         }
+        //long span = System.currentTimeMillis() - startTime;
+        //logger.info("[FaultTolerance][IoTDBStorage][id={}, unit={}] span = {}, err = {}", meta.getId(), storageUnit, span, e);
         if (e != null) {
             return new TaskExecuteResult(null, new PhysicalException("execute insert task in iotdb12 failure", e));
         }
