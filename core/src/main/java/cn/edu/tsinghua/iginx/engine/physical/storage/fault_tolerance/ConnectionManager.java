@@ -100,7 +100,7 @@ public class ConnectionManager {
             if (content.isAlive()) {
                 return;
             }
-            logger.info("[FaultTolerance][ConnectionManager][ProposalListener][iginx={}, id={}, key={}] decide remove and block storage engine, now = {}", iMetaManager.getIginxId(), content.getId(), key, System.currentTimeMillis());
+            logger.info("[FaultTolerance][ConnectionManager][ZiYuan][ProposalListener][iginx={}, id={}, key={}] decide remove and block storage engine, now = {}", iMetaManager.getIginxId(), content.getId(), key, System.currentTimeMillis());
             IStorageWrapper wrapper = (IStorageWrapper) StoragePhysicalTaskExecutor.getInstance().getStorageManager().getStorage(id).k;
             wrapper.setBlocked(true);
             // 开启一个迁移任务，把这个数据给迁移走，这里可能会 race，但是总有一个会成功，对外话术就是，所有的节点都会尝试开启
@@ -246,9 +246,9 @@ public class ConnectionManager {
         @Override
         public void run() {
             long iginxId = iMetaManager.getIginxId();
-            if (iginxId != 0L) {
-                return;
-            }
+//            if (iginxId != 0L) {
+//                return;
+//            }
             if (removedStorages.contains(id)) {
                 //logger.info("storage {} has been removed, we doesn't need to check alive.", id);
                 return;
@@ -311,7 +311,7 @@ public class ConnectionManager {
             if (block) {
                 return;
             }
-            logger.info("[FaultTolerance][ConnectionManager][iginx={}, id={}] storage loss connection, now = {}", iginxId, id, System.currentTimeMillis());
+            logger.info("[FaultTolerance][ConnectionManager][ZiYuan][iginx={}, id={}] storage loss connection, now = {}", iginxId, id, System.currentTimeMillis());
 
             // start proposal for check storage status
             SyncProposal proposal = new SyncProposal(iMetaManager.getIginxId(), JsonUtils.toJson(new LossConnectionProposalContent(id)));

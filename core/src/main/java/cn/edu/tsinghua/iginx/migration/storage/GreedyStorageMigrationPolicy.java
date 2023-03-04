@@ -37,6 +37,9 @@ public class GreedyStorageMigrationPolicy extends StorageMigrationPolicy {
     @Override
     public StorageMigrationPlan generateMigrationPlans(long sourceStorageId, boolean migrationData) {
         logger.info("[FaultTolerance][MigrationPolicy][iginx={}, id={}] generate migration plan", metaManager.getIginxId(), sourceStorageId);
+        for (StorageUnitMeta meta: metaManager.getStorageUnits()) {
+            logger.info("[FaultTolerance][MigrationPolicy][iginx={}, id={}] current storage unit info: {}", metaManager.getIginxId(), sourceStorageId, meta.toString());
+        }
         // discard、dummy 的分片不需要迁移，只迁移很正常状态的分片
         Map<Long, List<StorageUnitMeta>> storageUnitsMap = metaManager.getStorageUnits().stream().filter(e -> !e.isDummy()).filter(e -> e.getState() != StorageUnitState.DISCARD).collect(Collectors.groupingBy(StorageUnitMeta::getStorageEngineId));
 
@@ -62,6 +65,9 @@ public class GreedyStorageMigrationPolicy extends StorageMigrationPolicy {
                 avoid = masterUnit.getStorageEngineId();
             } else {
                 for (StorageUnitMeta unit: metaManager.getStorageUnits()) {
+                    if (unit.getState() == StorageUnitState.DISCARD) {
+                        continue;
+                    }
                     if (!unit.isMaster() && Objects.equals(unit.getMasterId(), storageUnit.getId())) {
                         avoid = unit.getStorageEngineId();
                         break;

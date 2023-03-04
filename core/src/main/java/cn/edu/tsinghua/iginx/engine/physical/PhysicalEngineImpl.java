@@ -80,6 +80,8 @@ public class PhysicalEngineImpl implements PhysicalEngine {
 
     private final StoragePhysicalTaskExecutor storageTaskExecutor;
 
+//    private final RateLimiter rateLimiter = RateLimiter.create(100000);
+
     private PhysicalEngineImpl() {
         optimizer = PhysicalOptimizerManager.getInstance().getOptimizer(ConfigDescriptor.getInstance().getConfig().getPhysicalOptimizer());
         memoryTaskExecutor = MemoryPhysicalTaskDispatcher.getInstance();
@@ -215,6 +217,13 @@ public class PhysicalEngineImpl implements PhysicalEngine {
         List<String> selectResultPaths, List<DataType> selectResultTypes, String storageUnitId)
         throws PhysicalException {
         // 按行批量插入数据
+        int metrics = 0;
+        for (Bitmap bitmap: bitmapList) {
+            metrics += bitmap.getCount();
+        }
+//        rateLimiter.acquire(metrics);
+        logger.info("[FaultTolerance][PhysicalEngineImpl][YuanZi][Throughput] migration throughput: {}, timestamp: {}", metrics, System.currentTimeMillis());
+
         RawData rowData = new RawData(selectResultPaths, Collections.emptyList(), timestampList,
             ByteUtils.getRowValuesByDataType(valuesList, selectResultTypes, bitmapBufferList),
             selectResultTypes, bitmapList, RawDataType.NonAlignedRow);

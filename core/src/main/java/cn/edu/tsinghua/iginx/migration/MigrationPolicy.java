@@ -452,7 +452,18 @@ public abstract class MigrationPolicy {
       logger.info("migration data from du {} to du {}", sourceStorageUnitId, targetStorageUnitId);
       List<FragmentMeta> fragmentMetas;
       if (sourceStorageUnit.isMaster()) {
+        // 这里有可能会出现 sourceStorageUnit 是被迁移后的分片，所以会出现找不到分片的情况
         fragmentMetas = DefaultMetaManager.getInstance().getFragmentsByStorageUnit(sourceStorageUnit.getId());
+        if (fragmentMetas.size() == 0) {
+          List<FragmentMeta> allFragments = DefaultMetaManager.getInstance().getFragments();
+          for (FragmentMeta fragmentMeta: allFragments) {
+            StorageUnitMeta meta = DefaultMetaManager.getInstance().getStorageUnit(fragmentMeta.getMasterStorageUnitId());
+            if (meta.getState() == StorageUnitState.DISCARD && Objects.equals(meta.getMigrationTo(), sourceStorageUnit.getId())) {
+              fragmentMetas.add(fragmentMeta);
+              break;
+            }
+          }
+        }
       } else {
         List<StorageUnitMeta> units = DefaultMetaManager.getInstance().getStorageUnits();
         String masterId = sourceStorageUnitId;
