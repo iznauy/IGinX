@@ -32,14 +32,14 @@ public class IoTDBConnector implements Connector {
 
     @Override
     public boolean echo(long timeout, TimeUnit unit) {
-        logger.info("[FaultTolerance][IoTDBConnector][id={}] echo start...", id);
+        //logger.info("[FaultTolerance][IoTDBConnector][id={}] echo start...", id);
         Future<Boolean> future = service.submit(() -> {
             try {
                 session.open();
                 SessionDataSet dataSet = session.executeQueryStatement("show version");
                 dataSet.closeOperationHandle();
                 session.close();
-                logger.info("[FaultTolerance][IoTDBConnector][id={}] echo connection success...", id);
+                //logger.info("[FaultTolerance][IoTDBConnector][id={}] echo connection success...", id);
             } catch (IoTDBConnectionException e) {
                 logger.error("[FaultTolerance][IoTDBConnector][id={}] echo execute failure {}", id, e);
                 return false;

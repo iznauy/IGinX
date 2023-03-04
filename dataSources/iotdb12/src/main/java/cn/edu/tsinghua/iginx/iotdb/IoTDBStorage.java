@@ -114,6 +114,8 @@ public class IoTDBStorage implements IStorage {
 
     private final SessionPool sessionPool;
 
+    private final SessionPool readSessionPool;
+
     private final StorageEngineMeta meta;
 
     private static final Logger logger = LoggerFactory.getLogger(IoTDBStorage.class);
@@ -127,6 +129,7 @@ public class IoTDBStorage implements IStorage {
             throw new StorageInitializationException("cannot connect to " + meta.toString());
         }
         sessionPool = createSessionPool();
+        readSessionPool = createReadSessionPool();
     }
 
     private boolean testConnection() {
@@ -156,6 +159,19 @@ public class IoTDBStorage implements IStorage {
                 null,
                 Config.DEFAULT_CACHE_LEADER_MODE,
                 3000);
+    }
+
+    private SessionPool createReadSessionPool() {
+        Map<String, String> extraParams = meta.getExtraParams();
+        String username = extraParams.getOrDefault(USERNAME, DEFAULT_USERNAME);
+        String password = extraParams.getOrDefault(PASSWORD, DEFAULT_PASSWORD);
+        int sessionPoolSize = Integer.parseInt(extraParams.getOrDefault(SESSION_POOL_SIZE, DEFAULT_SESSION_POOL_SIZE));
+        return new SessionPool(meta.getIp(), meta.getPort(), username, password, sessionPoolSize, Config.DEFAULT_FETCH_SIZE,
+                60_000,
+                false,
+                null,
+                Config.DEFAULT_CACHE_LEADER_MODE,
+                Config.DEFAULT_CONNECTION_TIMEOUT_MS);
     }
 
     @Override
@@ -314,8 +330,8 @@ public class IoTDBStorage implements IStorage {
                 builder.append(',');
             }
             String statement = String.format(QUERY_DATA, builder.deleteCharAt(builder.length() - 1).toString(), storageUnit, FilterTransformer.toString(filter));
-            logger.info("[Query] execute query: " + statement);
-            RowStream rowStream = new ClearEmptyRowStreamWrapper(new IoTDBQueryRowStream(sessionPool.executeQueryStatement(statement), true, project));
+            logger.info("[FaultTolerance][id={}] execute query: {}, len(patterns) = {}", this.meta.getId(), statement, project.getPatterns().size());
+            RowStream rowStream = new ClearEmptyRowStreamWrapper(new IoTDBQueryRowStream(readSessionPool.executeQueryStatement(statement), true, project));
             return new TaskExecuteResult(rowStream);
         } catch (IoTDBConnectionException | StatementExecutionException e) {
             logger.error(e.getMessage());

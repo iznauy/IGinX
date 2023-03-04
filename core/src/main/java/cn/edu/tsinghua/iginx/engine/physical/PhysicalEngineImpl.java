@@ -101,13 +101,10 @@ public class PhysicalEngineImpl implements PhysicalEngine {
                 FragmentMeta toMigrateFragment = migration.getFragmentMeta();
                 StorageUnitMeta targetStorageUnitMeta = migration.getTargetStorageUnitMeta();
                 TimeInterval timeInterval = toMigrateFragment.getTimeInterval();
-                List<String> paths = migration.getPaths();
-
-
 
                 // 查询分区数据
                 List<Operator> projectOperators = new ArrayList<>();
-                Project project = new Project(new FragmentSource(toMigrateFragment), paths, null);
+                Project project = new Project(new FragmentSource(toMigrateFragment), Collections.singletonList("*"), null);
                 projectOperators.add(project);
                 StoragePhysicalTask projectPhysicalTask = new StoragePhysicalTask(projectOperators, context);
 
@@ -181,6 +178,8 @@ public class PhysicalEngineImpl implements PhysicalEngine {
                                 logger.error("Migration data failure!", e);
                             }
                         });
+//                        insertDataByBatch(currTimestampList, currValuesList, currBitmapList, currBitmapBufferList,
+//                                toMigrateFragment, selectResultPaths, selectResultTypes, targetStorageUnitMeta.getId());
                         timestampList = new ArrayList<>();
                         valuesList = new ArrayList<>();
                         bitmapList = new ArrayList<>();

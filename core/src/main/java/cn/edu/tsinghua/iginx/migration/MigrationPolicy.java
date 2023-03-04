@@ -444,6 +444,7 @@ public abstract class MigrationPolicy {
   }
 
   public boolean migrationData(String sourceStorageUnitId, String targetStorageUnitId) {
+    long startTime = System.currentTimeMillis();
     try {
       StorageUnitMeta sourceStorageUnit = DefaultMetaManager.getInstance().getStorageUnit(sourceStorageUnitId);
       StorageUnitMeta targetStorageUnit = DefaultMetaManager.getInstance().getStorageUnit(targetStorageUnitId);
@@ -500,6 +501,8 @@ public abstract class MigrationPolicy {
         logger.info("migration data from du {} to du {}, path = {}", sourceStorageUnit.getId(), targetStorageUnit.getId(), pathSet);
         physicalEngine.execute(null, migration);
       }
+      long span = System.currentTimeMillis() - startTime;
+      logger.info("[FaultTolerance][MigrationData][iginx={}] du={} migration to {} finished, span = {}ms", DefaultMetaManager.getInstance().getIginxId(), sourceStorageUnitId, targetStorageUnitId, span);
       return true;
     } catch (Exception e) {
       logger.error("encounter error when migrate data from {} to {} ", sourceStorageUnitId,

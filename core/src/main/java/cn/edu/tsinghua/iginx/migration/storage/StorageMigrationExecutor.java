@@ -68,14 +68,9 @@ public class StorageMigrationExecutor {
                 String targetStorageUnitId = storageUnitMigrationMap.get(sourceStorageUnitId);
                 MigrationPolicy migrationPolicy = MigrationManager.getInstance().getMigration();
                 tasks.add(() -> {
-                    try {
-                        logger.info("migration is so short, so we sleep 10 s");
-                        Thread.sleep(1000 * 10);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
+                    logger.info("[FaultTolerance][MigrationExecutor][iginx={}, id={}] migration from {} to {}, migrationData = {}", metaManager.getIginxId(), storageId, sourceStorageUnitId, targetStorageUnitId, migrationData);
                     if (migrationData) {
-                        logger.info("call migration from {} tio {}", sourceStorageUnitId, targetStorageUnitId);
+                        logger.info("call migration from {} to {}", sourceStorageUnitId, targetStorageUnitId);
                         if (!migrationPolicy.migrationData(sourceStorageUnitId, targetStorageUnitId)) {
                             return false;
                         }
@@ -98,6 +93,7 @@ public class StorageMigrationExecutor {
                 e.printStackTrace();
                 return false;
             }
+            logger.info("[FaultTolerance][MigrationExecutor][iginx={}, id={}] all migration task finished", metaManager.getIginxId(), storageId);
             if (!migrationData) {
                 for (String storageUnitId: plan.getMigrationMap().keySet()) {
                     metaManager.finishMigrationStorageUnit(storageUnitId, false);
@@ -108,6 +104,7 @@ public class StorageMigrationExecutor {
             }
             StorageEngineMeta engineMeta = metaManager.getStorageEngine(storageId);
             engineMeta.setRemoved(true);
+            logger.info("[FaultTolerance][MigrationExecutor][iginx={}, id={}] migration finished", metaManager.getIginxId(), storageId);
             return metaManager.updateStorageEngine(storageId, engineMeta);
         }
 

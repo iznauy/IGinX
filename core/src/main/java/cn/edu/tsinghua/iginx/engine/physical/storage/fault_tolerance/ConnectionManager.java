@@ -246,9 +246,9 @@ public class ConnectionManager {
         @Override
         public void run() {
             long iginxId = iMetaManager.getIginxId();
-//            if (iginxId != 0L) {
-//                return;
-//            }
+            if (iginxId != 0L) {
+                return;
+            }
             if (removedStorages.contains(id)) {
                 //logger.info("storage {} has been removed, we doesn't need to check alive.", id);
                 return;
@@ -267,7 +267,7 @@ public class ConnectionManager {
                 logger.info("try restore connection for " + id + " timely");
             }
 
-            logger.info("[FaultTolerance][ConnectionManager][iginx={}, id={}] check storage alive..., now = {}", iginxId, id, System.currentTimeMillis());
+            //logger.info("[FaultTolerance][ConnectionManager][iginx={}, id={}] check storage alive..., now = {}", iginxId, id, System.currentTimeMillis());
             ConnectionManager manager = ConnectionManager.this;
             int maxRetryTimes = ConfigDescriptor.getInstance().getConfig().getStorageHeartbeatMaxRetryTimes();
             long heartbeatTimeout = ConfigDescriptor.getInstance().getConfig().getStorageHeartbeatTimeout();
@@ -304,7 +304,7 @@ public class ConnectionManager {
                             return;
                         }
                     }
-                    logger.info("[FaultTolerance][ConnectionManager][iginx={}, id={}] storage still alive", iginxId, id);
+                    //logger.info("[FaultTolerance][ConnectionManager][iginx={}, id={}] storage still alive", iginxId, id);
                     return;
                 }
             }
