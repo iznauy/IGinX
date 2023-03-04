@@ -45,11 +45,11 @@ public abstract class AbstractPhysicalTask implements PhysicalTask {
         this.type = type;
         this.operators = operators;
         this.context = context;
-
-        if (operators.size() > 1) {
-            logger.error("in experiment, operator in task should has 1.");
-            System.exit(-11);
-        }
+//
+//        if (operators.size() > 1) {
+//            logger.error("in experiment, operator in task should has 1.");
+//            System.exit(-11);
+//        }
     }
 
     @Override

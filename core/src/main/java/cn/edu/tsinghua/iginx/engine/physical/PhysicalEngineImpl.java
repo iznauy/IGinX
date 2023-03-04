@@ -103,34 +103,29 @@ public class PhysicalEngineImpl implements PhysicalEngine {
                 TimeInterval timeInterval = toMigrateFragment.getTimeInterval();
 
                 // 查询分区数据
-                List<Operator> projectOperators = new ArrayList<>();
+                List<Operator> operators = new ArrayList<>();
                 Project project = new Project(new FragmentSource(toMigrateFragment), Collections.singletonList("*"), null);
-                projectOperators.add(project);
-                StoragePhysicalTask projectPhysicalTask = new StoragePhysicalTask(projectOperators, context);
-
-                List<Operator> selectOperators = new ArrayList<>();
+                operators.add(project);
                 List<Filter> selectTimeFilters = new ArrayList<>();
-
                 long lastTs = timeInterval.getEndTime();
                 if (migration.getSourceStorageUnitId() != null) {
                     lastTs = GlobalCache.storageUnitLastTs.get(migration.getSourceStorageUnitId());
                 }
-
                 selectTimeFilters.add(new KeyFilter(Op.GE, timeInterval.getStartTime()));
                 selectTimeFilters.add(new KeyFilter(Op.L, lastTs));
-                selectOperators
-                    .add(new Select(new OperatorSource(project), new AndFilter(selectTimeFilters), null));
-                MemoryPhysicalTask selectPhysicalTask = new UnaryMemoryPhysicalTask(selectOperators, null,
-                    projectPhysicalTask);
-                projectPhysicalTask.setFollowerTask(selectPhysicalTask);
+                Select select = new Select(new OperatorSource(project), new AndFilter(selectTimeFilters), null);
+                operators.add(select);
+                StoragePhysicalTask physicalTask = new StoragePhysicalTask(operators, context);
 
                 if (migration.getSourceStorageUnitId() != null) {
-                    storageTaskExecutor.commitWithTargetStorageUnitId(projectPhysicalTask, migration.getSourceStorageUnitId());
+                    storageTaskExecutor.commitWithTargetStorageUnitId(physicalTask, migration.getSourceStorageUnitId());
                 } else {
-                    storageTaskExecutor.commit(projectPhysicalTask);
+                    storageTaskExecutor.commit(physicalTask);
                 }
 
-                TaskExecuteResult selectResult = selectPhysicalTask.getResult();
+                logger.info("wait for select result...");
+                TaskExecuteResult selectResult = physicalTask.getResult();
+                logger.info("wait for select result success");
                 RowStream selectRowStream = selectResult.getRowStream();
 
                 List<String> selectResultPaths = new ArrayList<>();

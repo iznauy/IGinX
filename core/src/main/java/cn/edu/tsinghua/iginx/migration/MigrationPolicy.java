@@ -485,11 +485,11 @@ public abstract class MigrationPolicy {
         if (timeSeries.contains("{") && timeSeries.contains("}")) {
           timeSeries = timeSeries.split("\\{")[0];
         }
-        logger.info("[migrationData] need migration path: {}", timeSeries);
+        //logger.info("[migrationData] need migration path: {}", timeSeries);
         for (FragmentMeta fragmentMeta: fragmentMetas) {
           if (fragmentMeta.getTsInterval().isContain(timeSeries)) {
             pathSet.add(timeSeries);
-            logger.info("[migrationData] path {} belong to {}", timeSeries, fragmentMeta);
+            //logger.info("[migrationData] path {} belong to {}", timeSeries, fragmentMeta);
           }
         }
       }
@@ -498,7 +498,7 @@ public abstract class MigrationPolicy {
       for (FragmentMeta fragmentMeta: fragmentMetas) {
         Migration migration = new Migration(new GlobalSource(), sourceStorageUnit.getStorageEngineId(), targetStorageUnit.getStorageEngineId(),
                 fragmentMeta, new ArrayList<>(pathSet), sourceStorageUnitId, targetStorageUnit);
-        logger.info("migration data from du {} to du {}, path = {}", sourceStorageUnit.getId(), targetStorageUnit.getId(), pathSet);
+        //logger.info("migration data from du {} to du {}, path = {}", sourceStorageUnit.getId(), targetStorageUnit.getId(), pathSet);
         physicalEngine.execute(null, migration);
       }
       long span = System.currentTimeMillis() - startTime;
