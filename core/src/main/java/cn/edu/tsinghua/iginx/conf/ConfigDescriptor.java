@@ -147,6 +147,7 @@ public class ConfigDescriptor {
             config.setEnableFaultTolerance(Boolean.parseBoolean(properties.getProperty("enableFaultTolerance", "false")));
             config.setEnableSharedStorage(Boolean.parseBoolean(properties.getProperty("enableSharedStorage", "true")));
             config.setSharedStorage(properties.getProperty("sharedStorage", "redis"));
+            config.setShardStorageConnectionString(properties.getProperty("shardStorageConnectionString", "http://127.0.0.1:6379"));
 
             // 容错相关
             config.setEnableStorageHeartbeat(Boolean.parseBoolean(properties.getProperty("enable_storage_heartbeat", "false")));

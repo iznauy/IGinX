@@ -1,5 +1,6 @@
 package cn.edu.tsinghua.iginx.sharedstore.redis;
 
+import cn.edu.tsinghua.iginx.conf.ConfigDescriptor;
 import cn.edu.tsinghua.iginx.sharedstore.SharedStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,8 +12,6 @@ public class RedisStore implements SharedStore {
 
     private static final Logger logger = LoggerFactory.getLogger(RedisStore.class);
 
-    private static final String REDIS_URL = "http://127.0.0.1:6379";
-
     private static final RedisStore INSTANCE = new RedisStore();
 
     private final JedisPool jedisPool;
@@ -20,7 +19,7 @@ public class RedisStore implements SharedStore {
     private RedisStore() {
         JedisPoolConfig config = new JedisPoolConfig();
         config.setMaxTotal(20);
-        jedisPool = new JedisPool(config, REDIS_URL);
+        jedisPool = new JedisPool(config, ConfigDescriptor.getInstance().getConfig().getShardStorageConnectionString());
     }
 
     @Override

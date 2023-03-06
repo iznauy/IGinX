@@ -53,6 +53,8 @@ import cn.edu.tsinghua.iginx.utils.Bitmap;
 import cn.edu.tsinghua.iginx.utils.ByteUtils;
 import java.nio.ByteBuffer;
 import java.util.Collections;
+
+import org.apache.curator.shaded.com.google.common.util.concurrent.RateLimiter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,9 +70,9 @@ public class PhysicalEngineImpl implements PhysicalEngine {
     @SuppressWarnings("unused")
     private static final Logger logger = LoggerFactory.getLogger(PhysicalEngineImpl.class);
 
-    private final ExecutorService migrationService = new ThreadPoolExecutor(ConfigDescriptor.getInstance().getConfig().getMigrationThreadPoolSize(),
-            Integer.MAX_VALUE,
-            60L, TimeUnit.SECONDS, new SynchronousQueue<>());
+//    private final ExecutorService migrationService = new ThreadPoolExecutor(ConfigDescriptor.getInstance().getConfig().getMigrationThreadPoolSize(),
+//            Integer.MAX_VALUE,
+//            60L, TimeUnit.SECONDS, new SynchronousQueue<>());
 
     private static final PhysicalEngineImpl INSTANCE = new PhysicalEngineImpl();
 
@@ -80,7 +82,7 @@ public class PhysicalEngineImpl implements PhysicalEngine {
 
     private final StoragePhysicalTaskExecutor storageTaskExecutor;
 
-//    private final RateLimiter rateLimiter = RateLimiter.create(100000);
+    private final RateLimiter rateLimiter = RateLimiter.create(500000);
 
     private PhysicalEngineImpl() {
         optimizer = PhysicalOptimizerManager.getInstance().getOptimizer(ConfigDescriptor.getInstance().getConfig().getPhysicalOptimizer());
@@ -167,16 +169,16 @@ public class PhysicalEngineImpl implements PhysicalEngine {
                         List<ByteBuffer> currValuesList = valuesList;
                         List<Bitmap> currBitmapList = bitmapList;
                         List<ByteBuffer> currBitmapBufferList = bitmapBufferList;
-                        migrationService.execute(() -> {
-                            try {
-                                insertDataByBatch(currTimestampList, currValuesList, currBitmapList, currBitmapBufferList,
-                                        toMigrateFragment, selectResultPaths, selectResultTypes, targetStorageUnitMeta.getId());
-                            } catch (Exception e) {
-                                logger.error("Migration data failure!", e);
-                            }
-                        });
-//                        insertDataByBatch(currTimestampList, currValuesList, currBitmapList, currBitmapBufferList,
-//                                toMigrateFragment, selectResultPaths, selectResultTypes, targetStorageUnitMeta.getId());
+//                        migrationService.execute(() -> {
+//                            try {
+//                                insertDataByBatch(currTimestampList, currValuesList, currBitmapList, currBitmapBufferList,
+//                                        toMigrateFragment, selectResultPaths, selectResultTypes, targetStorageUnitMeta.getId());
+//                            } catch (Exception e) {
+//                                logger.error("Migration data failure!", e);
+//                            }
+//                        });
+                        insertDataByBatch(currTimestampList, currValuesList, currBitmapList, currBitmapBufferList,
+                                toMigrateFragment, selectResultPaths, selectResultTypes, targetStorageUnitMeta.getId());
                         timestampList = new ArrayList<>();
                         valuesList = new ArrayList<>();
                         bitmapList = new ArrayList<>();
@@ -221,8 +223,7 @@ public class PhysicalEngineImpl implements PhysicalEngine {
         for (Bitmap bitmap: bitmapList) {
             metrics += bitmap.getCount();
         }
-//        rateLimiter.acquire(metrics);
-        logger.info("[FaultTolerance][PhysicalEngineImpl][YuanZi][Throughput] migration throughput: {}, timestamp: {}", metrics, System.currentTimeMillis());
+        rateLimiter.acquire(metrics);
 
         RawData rowData = new RawData(selectResultPaths, Collections.emptyList(), timestampList,
             ByteUtils.getRowValuesByDataType(valuesList, selectResultTypes, bitmapBufferList),
@@ -234,6 +235,7 @@ public class PhysicalEngineImpl implements PhysicalEngine {
         StoragePhysicalTask insertPhysicalTask = new StoragePhysicalTask(insertOperators, null);
         storageTaskExecutor.commitWithTargetStorageUnitId(insertPhysicalTask, storageUnitId);
         TaskExecuteResult insertResult = insertPhysicalTask.getResult();
+        logger.info("[FaultTolerance][PhysicalEngineImpl][YuanZi][Throughput] migration throughput: {}, timestamp: {}", metrics, System.currentTimeMillis());
         if (insertResult.getException() != null) {
             throw insertResult.getException();
         }

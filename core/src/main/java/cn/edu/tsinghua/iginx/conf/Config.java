@@ -183,6 +183,8 @@ public class Config {
 
     private String sharedStorage = "redis";
 
+    private String shardStorageConnectionString = "http://127.0.0.1:6379";
+
     ////////////////////
     //   容错相关配置   //
     ////////////////////
@@ -866,5 +868,13 @@ public class Config {
 
     public void setMigrationThreadPoolSize(int migrationThreadPoolSize) {
         this.migrationThreadPoolSize = migrationThreadPoolSize;
+    }
+
+    public String getShardStorageConnectionString() {
+        return shardStorageConnectionString;
+    }
+
+    public void setShardStorageConnectionString(String shardStorageConnectionString) {
+        this.shardStorageConnectionString = shardStorageConnectionString;
     }
 }

@@ -246,9 +246,9 @@ public class ConnectionManager {
         @Override
         public void run() {
             long iginxId = iMetaManager.getIginxId();
-//            if (iginxId != 0L) {
-//                return;
-//            }
+            if (iginxId != 0L) {
+                return;
+            }
             if (removedStorages.contains(id)) {
                 //logger.info("storage {} has been removed, we doesn't need to check alive.", id);
                 return;
