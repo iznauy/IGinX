@@ -22,6 +22,7 @@ import cn.edu.tsinghua.iginx.engine.shared.RequestContext;
 import cn.edu.tsinghua.iginx.engine.shared.operator.Operator;
 
 import java.util.Collections;
+import java.util.List;
 
 public class GlobalPhysicalTask extends AbstractPhysicalTask {
 
@@ -36,5 +37,10 @@ public class GlobalPhysicalTask extends AbstractPhysicalTask {
     @Override
     public boolean hasParentTask() {
         return false;
+    }
+
+    @Override
+    public List<PhysicalTask> getParentTasks() {
+        return Collections.emptyList();
     }
 }

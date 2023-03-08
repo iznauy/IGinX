@@ -24,6 +24,7 @@ import cn.edu.tsinghua.iginx.engine.physical.exception.PhysicalException;
 import cn.edu.tsinghua.iginx.engine.physical.exception.TooManyPhysicalTasksException;
 import cn.edu.tsinghua.iginx.engine.physical.exception.UnexpectedOperatorException;
 import cn.edu.tsinghua.iginx.engine.physical.fault.DefaultFaultTolerancePolicy;
+import cn.edu.tsinghua.iginx.engine.physical.fault.FaultTolerancePolicyManager;
 import cn.edu.tsinghua.iginx.engine.physical.fault.FaultToleranceStorageTaskRepeater;
 import cn.edu.tsinghua.iginx.engine.physical.memory.MemoryPhysicalTaskDispatcher;
 import cn.edu.tsinghua.iginx.engine.physical.optimizer.ReplicaDispatcher;
@@ -143,8 +144,9 @@ public class StoragePhysicalTaskExecutor {
                                 long span = System.currentTimeMillis() - startTime;
                                 if (result.hasSetRowStream()) {
                                     task.setSpan(span);
+                                    logger.info("[FaultToleranceQuery][StoragePhysicalTaskExecutor] task[id={}] is {}, lines = {}, span = {}ms", task.getOperators().get(0).getSequence(), task.getOperators().get(0).getInfo(), result.getEstimatedRowSize(), span);
                                     if (task.getContext() != null && task.getContext().isEnableFaultTolerance()) {
-                                        DefaultFaultTolerancePolicy.getInstance().persistence(task, result);
+                                        FaultTolerancePolicyManager.getInstance().getPolicy().persistence(task, result);
                                     }
                                 }
 

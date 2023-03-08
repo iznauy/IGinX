@@ -25,6 +25,7 @@ public class MultipleMemoryPhysicalTask extends MemoryPhysicalTask {
         this.parentTasks = parentTasks;
     }
 
+    @Override
     public List<PhysicalTask> getParentTasks() {
         return parentTasks;
     }

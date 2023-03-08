@@ -183,6 +183,12 @@ public class Config {
 
     private String sharedStorage = "redis";
 
+    private String faultTolerancePolicy = "default";
+
+    private double faultToleranceMaxCost = 0.03;
+
+    private int faultToleranceMaxPersistSize = 64;
+
     private String shardStorageConnectionString = "http://127.0.0.1:6379";
 
     ////////////////////
@@ -876,5 +882,29 @@ public class Config {
 
     public void setShardStorageConnectionString(String shardStorageConnectionString) {
         this.shardStorageConnectionString = shardStorageConnectionString;
+    }
+
+    public String getFaultTolerancePolicy() {
+        return faultTolerancePolicy;
+    }
+
+    public void setFaultTolerancePolicy(String faultTolerancePolicy) {
+        this.faultTolerancePolicy = faultTolerancePolicy;
+    }
+
+    public double getFaultToleranceMaxCost() {
+        return faultToleranceMaxCost;
+    }
+
+    public void setFaultToleranceMaxCost(double faultToleranceMaxCost) {
+        this.faultToleranceMaxCost = faultToleranceMaxCost;
+    }
+
+    public int getFaultToleranceMaxPersistSize() {
+        return faultToleranceMaxPersistSize;
+    }
+
+    public void setFaultToleranceMaxPersistSize(int faultToleranceMaxPersistSize) {
+        this.faultToleranceMaxPersistSize = faultToleranceMaxPersistSize;
     }
 }

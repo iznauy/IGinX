@@ -21,26 +21,26 @@ public abstract class AbstractFaultTolerancePolicy implements FaultTolerancePoli
     @Override
     public void persistence(PhysicalTask task, TaskExecuteResult result) {
         if (!enableSharedStorage) {
+            logger.info("[LongQuery][AbstractFaultTolerancePolicy] enableSharedStorage is false, so we skip persistence.");
             return;
         }
         if (task.getContext() == null) {
-            logger.error("unexpected task context is null");
+            logger.info("[LongQuery][AbstractFaultTolerancePolicy] physical task context is false, so we skip persistence.");
             return;
         }
         String key = RowStreamStoreUtils.encodeKey(task.getContext().getId(), task.getOperators().get(0).getSequence());
         if (!needPersistence(task, result)) {
-            logger.info("[FaultTolerancePolicy] task result for key = " + key + " doesn't need to persistence!");
             return;
         }
-        logger.info("[FaultTolerancePolicy] task result for key = " + key + " need to persistence!");
         RowStreamHolder holder = new RowStreamHolder(result.getRowStream());
         try {
-            RowStreamStoreUtils.storeRowStream(key, holder);
+            if (!RowStreamStoreUtils.storeRowStream(key, holder)) {
+                logger.error("[LongQuery][AbstractFaultTolerancePolicy][key={}] persistence failure", key);
+            }
             result.setRowStream(holder.getStream());
         } catch (PhysicalException e) {
-            e.printStackTrace();
-            logger.error("[FaultTolerancePolicy] persist task result failure: ", e);
+            logger.error("[LongQuery][AbstractFaultTolerancePolicy][key={}] persistence failure, because = {}", key, e);
         }
-        logger.info("[FaultTolerancePolicy] task result for key = " + key + " persistence finished!");
+        logger.info("[LongQuery][AbstractFaultTolerancePolicy][key={}] persistence success", key);
     }
 }

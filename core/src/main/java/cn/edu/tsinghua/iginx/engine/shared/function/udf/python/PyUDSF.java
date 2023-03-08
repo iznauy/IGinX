@@ -13,6 +13,8 @@ import cn.edu.tsinghua.iginx.engine.shared.function.udf.UDSF;
 import cn.edu.tsinghua.iginx.engine.shared.function.udf.utils.TypeUtils;
 import cn.edu.tsinghua.iginx.thrift.DataType;
 import cn.edu.tsinghua.iginx.utils.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import pemja.core.PythonInterpreter;
 
 import java.util.*;
@@ -21,6 +23,8 @@ import java.util.regex.Pattern;
 import static cn.edu.tsinghua.iginx.engine.shared.Constants.*;
 
 public class PyUDSF implements UDSF {
+
+    private static final Logger logger = LoggerFactory.getLogger(PyUDSF.class);
 
     private static final String PY_UDSF = "py_udsf";
 
@@ -33,6 +37,7 @@ public class PyUDSF implements UDSF {
     public PyUDSF(PythonInterpreter interpreter, String funcName) {
         this.interpreter = interpreter;
         this.funcName = funcName;
+        logger.info("[FaultToleranceQuery][Debug][UDF] load udf: {}", funcName);
         if (funcName.equals("transposition")) {
             this.function = Transposition.getInstance();
         }

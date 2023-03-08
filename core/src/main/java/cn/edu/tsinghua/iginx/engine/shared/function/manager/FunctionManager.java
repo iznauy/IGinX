@@ -55,6 +55,8 @@ public class FunctionManager {
     private FunctionManager() {
         this.functions = new HashMap<>();
         this.initSystemFunctions();
+
+        logger.info("[FaultToleranceQuery][Debug][FunctionManager] needInitBasicUDF = {}", config.isNeedInitBasicUDFFunctions());
         if (config.isNeedInitBasicUDFFunctions()) {
             this.initBasicUDFFunctions();
         }
@@ -65,6 +67,7 @@ public class FunctionManager {
     }
 
     private void initSystemFunctions() {
+        logger.info("[FaultToleranceQuery][Debug][FunctionManager] init system function");
         registerFunction(Avg.getInstance());
         registerFunction(Count.getInstance());
         registerFunction(FirstValue.getInstance());
@@ -77,13 +80,16 @@ public class FunctionManager {
         registerFunction(ArithmeticExpr.getInstance());
 
         // for tsbs
+        logger.info("[FaultToleranceQuery][Debug][FunctionManager] init system function transposition");
         registerFunction(Transposition.getInstance());
     }
 
     private void initBasicUDFFunctions() {
+        logger.info("[FaultToleranceQuery][Debug][FunctionManager] init basic udf functions");
         List<TransformTaskMeta> metaList = new ArrayList<>();
         List<String> udfList = config.getUdfList();
         for (String udf: udfList) {
+            logger.info("[FaultToleranceQuery][Debug][FunctionManager] udf line = {}, try to load...", udf);
             String[] udfInfo = udf.split(",");
             if (udfInfo.length != 4) {
                 logger.error("udf info len must be 4.");
@@ -161,29 +167,30 @@ public class FunctionManager {
             .addPythonPaths(PATH)
             .build();
 
-        PythonInterpreter interpreter = new PythonInterpreter(config);
-        String fileName = taskMeta.getFileName();
-        String moduleName = fileName.substring(0, fileName.indexOf(PY_SUFFIX));
-        String className = taskMeta.getClassName();
+//        PythonInterpreter interpreter = new PythonInterpreter(config);
+//        String fileName = taskMeta.getFileName();
+//        String moduleName = fileName.substring(0, fileName.indexOf(PY_SUFFIX));
+//        String className = taskMeta.getClassName();
+//
+//        // init the python udf
+//        interpreter.exec(String.format("import %s", moduleName));
+//        interpreter.exec(String.format("t = %s.%s()", moduleName, className));
 
-        // init the python udf
-        interpreter.exec(String.format("import %s", moduleName));
-        interpreter.exec(String.format("t = %s.%s()", moduleName, className));
 
         if (taskMeta.getType().equals(UDFType.UDAF)) {
-            PyUDAF udaf = new PyUDAF(interpreter, identifier);
+            PyUDAF udaf = new PyUDAF(null, identifier);
             functions.put(identifier, udaf);
             return udaf;
         } else if (taskMeta.getType().equals(UDFType.UDTF)) {
-            PyUDTF udtf = new PyUDTF(interpreter, identifier);
+            PyUDTF udtf = new PyUDTF(null, identifier);
             functions.put(identifier, udtf);
             return udtf;
         } else if (taskMeta.getType().equals(UDFType.UDSF)) {
-            PyUDSF udsf = new PyUDSF(interpreter, identifier);
+            PyUDSF udsf = new PyUDSF(null, identifier);
             functions.put(identifier, udsf);
             return udsf;
         } else {
-            interpreter.close();
+//            interpreter.close();
             throw new IllegalArgumentException(String.format("UDF %s registered in type %s", identifier, taskMeta.getType()));
         }
     }

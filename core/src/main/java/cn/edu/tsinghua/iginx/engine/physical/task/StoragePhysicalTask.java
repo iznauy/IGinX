@@ -26,6 +26,7 @@ import cn.edu.tsinghua.iginx.engine.shared.operator.type.OperatorType;
 import cn.edu.tsinghua.iginx.engine.shared.source.FragmentSource;
 import cn.edu.tsinghua.iginx.metadata.entity.FragmentMeta;
 
+import java.util.Collections;
 import java.util.List;
 
 public class StoragePhysicalTask extends AbstractPhysicalTask {
@@ -146,5 +147,10 @@ public class StoragePhysicalTask extends AbstractPhysicalTask {
     @Override
     public boolean hasParentTask() {
         return false;
+    }
+
+    @Override
+    public List<PhysicalTask> getParentTasks() {
+        return Collections.emptyList();
     }
 }

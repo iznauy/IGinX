@@ -31,6 +31,7 @@ import cn.edu.tsinghua.iginx.engine.shared.operator.UnaryOperator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class BinaryMemoryPhysicalTask extends MemoryPhysicalTask {
@@ -104,5 +105,13 @@ public class BinaryMemoryPhysicalTask extends MemoryPhysicalTask {
     @Override
     public boolean hasParentTask() {
         return true;
+    }
+
+    @Override
+    public List<PhysicalTask> getParentTasks() {
+        List<PhysicalTask> tasks = new ArrayList<>();
+        tasks.add(parentTaskA);
+        tasks.add(parentTaskB);
+        return tasks;
     }
 }

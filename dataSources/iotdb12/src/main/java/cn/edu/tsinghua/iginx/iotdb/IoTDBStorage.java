@@ -158,7 +158,7 @@ public class IoTDBStorage implements IStorage {
                 false,
                 null,
                 Config.DEFAULT_CACHE_LEADER_MODE,
-                3000);
+                Config.DEFAULT_CONNECTION_TIMEOUT_MS);
     }
 
     private SessionPool createReadSessionPool() {

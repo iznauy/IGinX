@@ -23,7 +23,9 @@ import cn.edu.tsinghua.iginx.engine.shared.operator.Operator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
 public abstract class AbstractPhysicalTask implements PhysicalTask {
@@ -41,11 +43,13 @@ public abstract class AbstractPhysicalTask implements PhysicalTask {
 
     private long span = 0;
 
+    private final Map<String, Object> extraInfo = new HashMap<>();
+
     public AbstractPhysicalTask(TaskType type, List<Operator> operators, RequestContext context) {
         this.type = type;
         this.operators = operators;
         this.context = context;
-//
+
 //        if (operators.size() > 1) {
 //            logger.error("in experiment, operator in task should has 1.");
 //            System.exit(-11);
@@ -101,5 +105,15 @@ public abstract class AbstractPhysicalTask implements PhysicalTask {
     @Override
     public long getSpan() {
         return span;
+    }
+
+    @Override
+    public Object getExtraInfo(String key) {
+        return extraInfo.get(key);
+    }
+
+    @Override
+    public void setExtraInfo(String key, Object value) {
+        extraInfo.put(key, value);
     }
 }

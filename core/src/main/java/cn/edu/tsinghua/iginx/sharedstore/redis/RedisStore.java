@@ -17,6 +17,7 @@ public class RedisStore implements SharedStore {
     private final JedisPool jedisPool;
 
     private RedisStore() {
+        logger.info("[PerformanceTest][RedisStore] redis connection string: {}", ConfigDescriptor.getInstance().getConfig().getShardStorageConnectionString());
         JedisPoolConfig config = new JedisPoolConfig();
         config.setMaxTotal(20);
         jedisPool = new JedisPool(config, ConfigDescriptor.getInstance().getConfig().getShardStorageConnectionString());
@@ -60,6 +61,15 @@ public class RedisStore implements SharedStore {
             logger.error(e.getMessage(), e);
         }
         return false;
+    }
+
+    public String ping() {
+        try (Jedis jedis = jedisPool.getResource()) {
+            return jedis.ping();
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+        }
+        return "";
     }
 
     public static RedisStore getInstance() {

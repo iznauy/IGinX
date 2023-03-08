@@ -148,6 +148,9 @@ public class ConfigDescriptor {
             config.setEnableSharedStorage(Boolean.parseBoolean(properties.getProperty("enableSharedStorage", "true")));
             config.setSharedStorage(properties.getProperty("sharedStorage", "redis"));
             config.setShardStorageConnectionString(properties.getProperty("shardStorageConnectionString", "http://127.0.0.1:6379"));
+            config.setFaultTolerancePolicy(properties.getProperty("faultTolerancePolicy", "default"));
+            config.setFaultToleranceMaxCost(Double.parseDouble(properties.getProperty("faultToleranceMaxCost", "0.03")));
+            config.setFaultToleranceMaxPersistSize(Integer.parseInt(properties.getProperty("faultToleranceMaxPersistSize", "64")));
 
             // 容错相关
             config.setEnableStorageHeartbeat(Boolean.parseBoolean(properties.getProperty("enable_storage_heartbeat", "false")));
@@ -234,7 +237,10 @@ public class ConfigDescriptor {
     }
 
     private void loadUDFListFromFile() {
-        try (InputStream in = new FileInputStream(EnvUtils.loadEnv(Constants.UDF_LIST, Constants.UDF_LIST_FILE))) {
+        String filePath = EnvUtils.loadEnv(Constants.UDF_LIST, Constants.UDF_LIST_FILE);
+        File udfFile = new File(filePath);
+        logger.info("[FaultToleranceQuery][Debug][ConfigDescriptor] udf_list file path = {}, absolute path = {}", filePath, udfFile.getAbsolutePath());
+        try (InputStream in = new FileInputStream(filePath)) {
             BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(in));
 
             String line = null;

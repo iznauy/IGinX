@@ -24,7 +24,7 @@ import cn.edu.tsinghua.iginx.engine.shared.operator.Operator;
 
 import java.util.List;
 
-public interface PhysicalTask extends Measurable {
+public interface PhysicalTask extends Measurable, ExtraInfo {
 
     TaskType getType();
 
@@ -41,5 +41,7 @@ public interface PhysicalTask extends Measurable {
     RequestContext getContext();
 
     boolean hasParentTask();
+
+    List<PhysicalTask> getParentTasks();
 
 }

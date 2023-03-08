@@ -31,12 +31,16 @@ import cn.edu.tsinghua.iginx.engine.shared.source.OperatorSource;
 import cn.edu.tsinghua.iginx.engine.shared.source.Source;
 import cn.edu.tsinghua.iginx.engine.shared.source.SourceType;
 import cn.edu.tsinghua.iginx.sharedstore.utils.RowStreamStoreUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
 public class NaivePhysicalOptimizer implements PhysicalOptimizer {
+
+    private static final Logger logger = LoggerFactory.getLogger(NaivePhysicalOptimizer.class);
 
     public static NaivePhysicalOptimizer getInstance() {
         return NaivePhysicalOptimizerHolder.INSTANCE;
@@ -48,7 +52,7 @@ public class NaivePhysicalOptimizer implements PhysicalOptimizer {
             return null;
         }
         if (context.isEnableFaultTolerance()) {
-            markSequence(root, 1);
+            markSequence(context, root, 1);
             if (context.isRecover()) {
                 root = trimOperatorTreeBySharedStorage(context, root);
             }
@@ -86,28 +90,29 @@ public class NaivePhysicalOptimizer implements PhysicalOptimizer {
         return root;
     }
 
-    private int markSequence(Operator operator, int sequence) { // sequence 为标记当前节点的编号
+    private int markSequence(RequestContext ctx, Operator operator, int sequence) { // sequence 为标记当前节点的编号
         operator.setSequence(sequence);
+        logger.info("[LongQuery][NaivePhysicalOptimizer][queryId={}] mark operator [{}] as {}", ctx.getId(), operator.getInfo(), sequence);
         sequence += 1;
         if (OperatorType.isUnaryOperator(operator.getType())) {
             UnaryOperator unaryOperator = (UnaryOperator) operator;
             Source source = unaryOperator.getSource();
             if (source.getType() != SourceType.Fragment) { // 构建物理计划
                 OperatorSource operatorSource = (OperatorSource) source;
-                sequence =  markSequence(operatorSource.getOperator(), sequence);
+                sequence =  markSequence(ctx, operatorSource.getOperator(), sequence);
             }
         } else if (OperatorType.isBinaryOperator(operator.getType())) {
             BinaryOperator binaryOperator = (BinaryOperator) operator;
             OperatorSource sourceA = (OperatorSource) binaryOperator.getSourceA();
             OperatorSource sourceB = (OperatorSource) binaryOperator.getSourceB();
-            sequence = markSequence(sourceA.getOperator(), sequence);
-            sequence = markSequence(sourceB.getOperator(), sequence);
+            sequence = markSequence(ctx, sourceA.getOperator(), sequence);
+            sequence = markSequence(ctx, sourceB.getOperator(), sequence);
         } else {
             MultipleOperator multipleOperator = (MultipleOperator) operator;
             List<Source> sources = multipleOperator.getSources();
             for (Source source : sources) {
                 OperatorSource operatorSource = (OperatorSource) source;
-                sequence = markSequence(operatorSource.getOperator(), sequence);
+                sequence = markSequence(ctx, operatorSource.getOperator(), sequence);
             }
         }
         return sequence;

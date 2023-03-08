@@ -12,6 +12,7 @@ import cn.edu.tsinghua.iginx.engine.shared.operator.UnaryOperator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
 import java.util.List;
 
 public class UnaryMemoryPhysicalTask extends MemoryPhysicalTask {
@@ -32,6 +33,14 @@ public class UnaryMemoryPhysicalTask extends MemoryPhysicalTask {
     @Override
     public boolean hasParentTask() {
         return parentTask != null;
+    }
+
+    @Override
+    public List<PhysicalTask> getParentTasks() {
+        if (parentTask == null) {
+            return Collections.emptyList();
+        }
+        return Collections.singletonList(parentTask);
     }
 
     @Override

@@ -45,12 +45,41 @@ public class RowStreamStoreUtils {
         return estimatedSize;
     }
 
+    public static double estimatePersistAndSerializeTime(long size) {
+        double sizeInMB = size * 1.0 / 1024 / 1024;
+        double persistTime = sizeInMB * 0.8 + 1;
+        double serializeTime = persistTime * 15;
+        return persistTime + serializeTime;
+    }
+
+    public static double estimateLoadAndDeserializeTime(long size) {
+        double sizeInMB = size * 1.0 / 1024 / 1024;
+        double loadTime = sizeInMB * 1.64 + 2.6;
+        double deserializeTime = loadTime * 15;
+        return loadTime + deserializeTime;
+    }
+
+    public static long getRowStreamLines(RowStreamHolder holder) throws PhysicalException {
+        Table table = holder.getAsTable();
+        long size = table.getRowSize();
+        table.reset();;
+        holder.setTable(table);
+        return size;
+    }
+
     public static boolean storeRowStream(String key, RowStreamHolder holder) throws PhysicalException {
         Table table = holder.getAsTable();
         try {
+            long startTime = System.currentTimeMillis();
             byte[] bytes = JSON.toJSONBytes(table);
-            logger.info("[storeRowStream] store key: " + key + ", store value: " + new String(bytes));
-            return sharedStore.put(key.getBytes(StandardCharsets.UTF_8), bytes);
+            long serializeSpan = System.currentTimeMillis() - startTime;
+            boolean success = sharedStore.put(key.getBytes(StandardCharsets.UTF_8), bytes);
+            long storeSpan = System.currentTimeMillis() - (startTime + serializeSpan);
+            logger.info("[LongQuery][RowStreamStoreUtils][storeRowStream][key={}] value size: {}, serialize span: {}ms, storeSpan = {}ms", key, bytes.length, serializeSpan, storeSpan);
+            return success;
+        } catch (Exception e) {
+            logger.error("[LongQuery][RowStreamStoreUtils][storeRowStream][key={}] value persistence failure: {}", key, e);
+            throw new PhysicalException(e);
         } finally {
             table.reset();
             holder.setTable(table);
@@ -58,37 +87,45 @@ public class RowStreamStoreUtils {
     }
 
     public static RowStream loadRowStream(String key) {
-        byte[] bytes = sharedStore.get(key.getBytes(StandardCharsets.UTF_8));
-        if (bytes == null) {
-            logger.info("row stream for key: " + key + " is not exists.");
-            return null;
-        }
-        logger.info("[loadRowStream] load key: " + key + ", store value: " + new String(bytes));
-        Table table = JSON.parseObject(bytes, Table.class);
-        List<Row> rows = table.getRows();
-        for (Row row: rows) {
-            row.setHeader(table.getHeader());
-            Object[] values = row.getValues();
-            for (int i = 0; i < values.length; i++) {
-                if (values[i] == null) {
-                    continue;
-                }
-                if (row.getField(i).getType() == DataType.LONG) {
-                    values[i] = ((Number) values[i]).longValue();
-                } else if (row.getField(i).getType() == DataType.DOUBLE) {
-                    values[i] = ((Number) values[i]).doubleValue();
-                } else if (row.getField(i).getType() == DataType.BINARY) {
-                    JSONArray jsonArr = (JSONArray) values[i];
-                    byte[] arr = new byte[jsonArr.size()];
-                    for (int j = 0; j < jsonArr.size(); j++) {
-                        int value = jsonArr.getInteger(j);
-                        arr[j] = (byte) value;
+        try {
+            long startTime = System.currentTimeMillis();
+            byte[] bytes = sharedStore.get(key.getBytes(StandardCharsets.UTF_8));
+            long loadSpan = System.currentTimeMillis() - startTime;
+            if (bytes == null) {
+                logger.info("[LongQuery][RowStreamStoreUtils][loadRowStream][key={}] value is not exists", key);
+                return null;
+            }
+            Table table = JSON.parseObject(bytes, Table.class);
+            List<Row> rows = table.getRows();
+            for (Row row: rows) {
+                row.setHeader(table.getHeader());
+                Object[] values = row.getValues();
+                for (int i = 0; i < values.length; i++) {
+                    if (values[i] == null) {
+                        continue;
                     }
-                    values[i] = arr;
+                    if (row.getField(i).getType() == DataType.LONG) {
+                        values[i] = ((Number) values[i]).longValue();
+                    } else if (row.getField(i).getType() == DataType.DOUBLE) {
+                        values[i] = ((Number) values[i]).doubleValue();
+                    } else if (row.getField(i).getType() == DataType.BINARY) {
+                        JSONArray jsonArr = (JSONArray) values[i];
+                        byte[] arr = new byte[jsonArr.size()];
+                        for (int j = 0; j < jsonArr.size(); j++) {
+                            int value = jsonArr.getInteger(j);
+                            arr[j] = (byte) value;
+                        }
+                        values[i] = arr;
+                    }
                 }
             }
+            long deserializeSpan = System.currentTimeMillis() - (startTime + loadSpan);
+            logger.info("[LongQuery][RowStreamStoreUtils][loadRowStream][key={}] value size: {}, deserialize span: {}ms, loadSpan = {}ms", key, bytes.length, deserializeSpan, loadSpan);
+            return table;
+        } catch (Exception e) {
+            logger.error("[LongQuery][RowStreamStoreUtils][loadRowStream][key={}] value load failure: {}", key, e);
         }
-        return table;
+        return null;
     }
 
     public static boolean checkRowStream(String key) {

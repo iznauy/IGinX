@@ -47,11 +47,15 @@ import cn.edu.tsinghua.iginx.thrift.DataType;
 import cn.edu.tsinghua.iginx.utils.Bitmap;
 import cn.edu.tsinghua.iginx.utils.Pair;
 import cn.edu.tsinghua.iginx.utils.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.regex.Pattern;
 
 public class NaiveOperatorMemoryExecutor implements OperatorMemoryExecutor {
+
+    private static final Logger logger = LoggerFactory.getLogger(NaiveOperatorMemoryExecutor.class);
 
     private NaiveOperatorMemoryExecutor() {
     }
