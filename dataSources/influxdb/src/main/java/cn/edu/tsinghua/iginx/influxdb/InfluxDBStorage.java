@@ -24,6 +24,7 @@ import cn.edu.tsinghua.iginx.engine.physical.exception.PhysicalTaskExecuteFailur
 import cn.edu.tsinghua.iginx.engine.physical.exception.StorageInitializationException;
 import cn.edu.tsinghua.iginx.engine.physical.storage.IStorage;
 import cn.edu.tsinghua.iginx.engine.physical.storage.domain.Timeseries;
+import cn.edu.tsinghua.iginx.engine.physical.storage.fault_tolerance.Connector;
 import cn.edu.tsinghua.iginx.engine.physical.task.StoragePhysicalTask;
 import cn.edu.tsinghua.iginx.engine.physical.task.TaskExecuteResult;
 import cn.edu.tsinghua.iginx.engine.shared.TimeRange;
@@ -148,6 +149,11 @@ public class InfluxDBStorage implements IStorage {
             logger.debug("history data bucket info: " + bucket);
             historyBucketMap.put(bucket.getName(), bucket);
         }
+    }
+
+    public Connector getConnector() {
+        return new InfluxDBConnector(meta.getId(), meta.getExtraParams().get("url"),
+                meta.getExtraParams().get("token").toCharArray());
     }
 
     @Override
@@ -495,12 +501,9 @@ public class InfluxDBStorage implements IStorage {
             }
         }
         try {
-            logger.info("开始数据写入");
             client.getWriteApiBlocking().writePoints(bucket.getId(), organization.getId(), points);
         } catch (Exception e) {
             logger.error("encounter error when write points to influxdb: ", e);
-        } finally {
-            logger.info("数据写入完毕！");
         }
         return null;
     }
@@ -561,12 +564,9 @@ public class InfluxDBStorage implements IStorage {
         }
 
         try {
-            logger.info("开始数据写入");
             client.getWriteApiBlocking().writePoints(bucket.getId(), organization.getId(), points);
         } catch (Exception e) {
             logger.error("encounter error when write points to influxdb: ", e);
-        } finally {
-            logger.info("数据写入完毕！");
         }
 
         return null;
