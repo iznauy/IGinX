@@ -118,6 +118,7 @@ public class PhysicalEngineImpl implements PhysicalEngine {
                 selectTimeFilters.add(new KeyFilter(Op.GE, timeInterval.getStartTime()));
                 selectTimeFilters.add(new KeyFilter(Op.L, lastTs));
                 Select select = new Select(new OperatorSource(project), new AndFilter(selectTimeFilters), null);
+                logger.info("[FaultTolerance][PhysicalEngineImpl] migration task select operator: {}", select.getInfo());
                 operators.add(select);
                 StoragePhysicalTask physicalTask = new StoragePhysicalTask(operators, context);
 
@@ -131,6 +132,9 @@ public class PhysicalEngineImpl implements PhysicalEngine {
                 TaskExecuteResult selectResult = physicalTask.getResult();
                 logger.info("wait for select result success");
                 RowStream selectRowStream = selectResult.getRowStream();
+
+                logger.info("[FaultTolerance][PhysicalEngineImpl] migration select exception: {}, rowStream: {}", selectResult.getException(), selectRowStream);
+
 
                 List<String> selectResultPaths = new ArrayList<>();
                 List<DataType> selectResultTypes = new ArrayList<>();

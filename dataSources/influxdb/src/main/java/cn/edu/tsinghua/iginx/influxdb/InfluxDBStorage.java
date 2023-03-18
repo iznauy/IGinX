@@ -152,7 +152,8 @@ public class InfluxDBStorage implements IStorage {
     }
 
     public Connector getConnector() {
-        return null;
+        return new InfluxDBConnector(meta.getId(), meta.getExtraParams().get("url"),
+                meta.getExtraParams().get("token").toCharArray());
     }
 
     @Override
@@ -500,12 +501,9 @@ public class InfluxDBStorage implements IStorage {
             }
         }
         try {
-            logger.info("开始数据写入");
             client.getWriteApiBlocking().writePoints(bucket.getId(), organization.getId(), points);
         } catch (Exception e) {
             logger.error("encounter error when write points to influxdb: ", e);
-        } finally {
-            logger.info("数据写入完毕！");
         }
         return null;
     }
@@ -566,12 +564,9 @@ public class InfluxDBStorage implements IStorage {
         }
 
         try {
-            logger.info("开始数据写入");
             client.getWriteApiBlocking().writePoints(bucket.getId(), organization.getId(), points);
         } catch (Exception e) {
             logger.error("encounter error when write points to influxdb: ", e);
-        } finally {
-            logger.info("数据写入完毕！");
         }
 
         return null;

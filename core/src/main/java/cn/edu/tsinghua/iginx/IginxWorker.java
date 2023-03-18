@@ -131,6 +131,7 @@ public class IginxWorker implements IService.Iface {
             logger.error("Insert paths must have more than one sub paths.");
             return RpcUtils.FAILURE;
         }
+
         RequestContext ctx = contextBuilder.build(req);
         executor.execute(ctx);
         return ctx.takeResult().getStatus();

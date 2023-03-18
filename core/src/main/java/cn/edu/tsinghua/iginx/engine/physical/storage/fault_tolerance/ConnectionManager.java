@@ -261,10 +261,10 @@ public class ConnectionManager {
             boolean block = blockedStorages.contains(id);
             if (block) {
                 if (random.nextDouble() > restoreConnectionProbability) {
-                    logger.info("don't need to check connection for " + id);
+                    //logger.info("don't need to check connection for " + id);
                     return;
                 }
-                logger.info("try restore connection for " + id + " timely");
+                //logger.info("try restore connection for " + id + " timely");
             }
 
             //logger.info("[FaultTolerance][ConnectionManager][iginx={}, id={}] check storage alive..., now = {}", iginxId, id, System.currentTimeMillis());
