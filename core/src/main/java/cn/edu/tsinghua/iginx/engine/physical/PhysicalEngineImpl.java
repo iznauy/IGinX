@@ -61,16 +61,13 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 public class PhysicalEngineImpl implements PhysicalEngine {
     @SuppressWarnings("unused")
     private static final Logger logger = LoggerFactory.getLogger(PhysicalEngineImpl.class);
 
-//    private final ExecutorService migrationService = new ThreadPoolExecutor(ConfigDescriptor.getInstance().getConfig().getMigrationThreadPoolSize(),
+//    private final ExecutorService migrationService = new ThreadPoolExecutor(5,
 //            Integer.MAX_VALUE,
 //            60L, TimeUnit.SECONDS, new SynchronousQueue<>());
 
@@ -105,21 +102,16 @@ public class PhysicalEngineImpl implements PhysicalEngine {
                 FragmentMeta toMigrateFragment = migration.getFragmentMeta();
                 StorageUnitMeta targetStorageUnitMeta = migration.getTargetStorageUnitMeta();
                 TimeInterval timeInterval = toMigrateFragment.getTimeInterval();
-
-                // 查询分区数据
-                List<Operator> operators = new ArrayList<>();
-                Project project = new Project(new FragmentSource(toMigrateFragment), Collections.singletonList("*"), null);
-                operators.add(project);
-                List<Filter> selectTimeFilters = new ArrayList<>();
+                long startTs = timeInterval.getStartTime();
                 long lastTs = timeInterval.getEndTime();
                 if (migration.getSourceStorageUnitId() != null) {
                     lastTs = GlobalCache.storageUnitLastTs.get(migration.getSourceStorageUnitId());
                 }
-                selectTimeFilters.add(new KeyFilter(Op.GE, timeInterval.getStartTime()));
-                selectTimeFilters.add(new KeyFilter(Op.L, lastTs));
-                Select select = new Select(new OperatorSource(project), new AndFilter(selectTimeFilters), null);
-                logger.info("[FaultTolerance][PhysicalEngineImpl] migration task select operator: {}", select.getInfo());
-                operators.add(select);
+                // 查询分区数据
+                List<Operator> operators = new ArrayList<>();
+                Project project = new Project(new FragmentSource(toMigrateFragment.copy(new TimeInterval(startTs, lastTs))), Collections.singletonList("*"), null);
+                operators.add(project);
+
                 StoragePhysicalTask physicalTask = new StoragePhysicalTask(operators, context);
 
                 if (migration.getSourceStorageUnitId() != null) {
@@ -148,6 +140,8 @@ public class PhysicalEngineImpl implements PhysicalEngine {
                 List<Bitmap> bitmapList = new ArrayList<>();
                 List<ByteBuffer> bitmapBufferList = new ArrayList<>();
 
+//                List<Future<Boolean>> futures = new ArrayList<>();
+
                 boolean hasTimestamp = selectRowStream.getHeader().hasKey();
                 while (selectRowStream.hasNext()) {
                     Row row = selectRowStream.next();
@@ -168,19 +162,21 @@ public class PhysicalEngineImpl implements PhysicalEngine {
                     // 按行批量插入数据
                     if (timestampList.size() == ConfigDescriptor.getInstance().getConfig()
                         .getMigrationBatchSize()) {
-                        logger.info("Migration Progress of {}: {} to {}", migration.getSourceStorageUnitId(), timestampList.get(timestampList.size() - 1), lastTs);
+                        //logger.info("Migration Progress of {}: {} to {}", migration.getSourceStorageUnitId(), timestampList.get(timestampList.size() - 1), lastTs);
                         List<Long> currTimestampList = timestampList;
                         List<ByteBuffer> currValuesList = valuesList;
                         List<Bitmap> currBitmapList = bitmapList;
                         List<ByteBuffer> currBitmapBufferList = bitmapBufferList;
-//                        migrationService.execute(() -> {
+//                        futures.add(migrationService.submit(() -> {
 //                            try {
 //                                insertDataByBatch(currTimestampList, currValuesList, currBitmapList, currBitmapBufferList,
 //                                        toMigrateFragment, selectResultPaths, selectResultTypes, targetStorageUnitMeta.getId());
+//                                return true;
 //                            } catch (Exception e) {
 //                                logger.error("Migration data failure!", e);
+//                                return false;
 //                            }
-//                        });
+//                        }));
                         insertDataByBatch(currTimestampList, currValuesList, currBitmapList, currBitmapBufferList,
                                 toMigrateFragment, selectResultPaths, selectResultTypes, targetStorageUnitMeta.getId());
                         timestampList = new ArrayList<>();
@@ -191,6 +187,14 @@ public class PhysicalEngineImpl implements PhysicalEngine {
                 }
                 insertDataByBatch(timestampList, valuesList, bitmapList, bitmapBufferList,
                     toMigrateFragment, selectResultPaths, selectResultTypes, targetStorageUnitMeta.getId());
+
+//                for (Future<Boolean> future: futures) {
+//                    try {
+//                        future.get();
+//                    } catch (Exception e) {
+//                        e.printStackTrace();
+//                    }
+//                }
 
                 // 设置分片现在所属的du
                 //toMigrateFragment.setMasterStorageUnit(targetStorageUnitMeta);
@@ -237,9 +241,11 @@ public class PhysicalEngineImpl implements PhysicalEngine {
         List<Operator> insertOperators = new ArrayList<>();
         insertOperators.add(new Insert(new FragmentSource(toMigrateFragment), rowDataView));
         StoragePhysicalTask insertPhysicalTask = new StoragePhysicalTask(insertOperators, null);
+        long startTs = System.currentTimeMillis();
         storageTaskExecutor.commitWithTargetStorageUnitId(insertPhysicalTask, storageUnitId);
         TaskExecuteResult insertResult = insertPhysicalTask.getResult();
-        logger.info("[FaultTolerance][PhysicalEngineImpl][YuanZi][Throughput] migration throughput: {}, timestamp: {}", metrics, System.currentTimeMillis());
+        long span = System.currentTimeMillis() - startTs;
+        logger.info("[FaultTolerance][PhysicalEngineImpl][YuanZi][Throughput] migration throughput: {}, span: {} ms", metrics, span);
         if (insertResult.getException() != null) {
             throw insertResult.getException();
         }

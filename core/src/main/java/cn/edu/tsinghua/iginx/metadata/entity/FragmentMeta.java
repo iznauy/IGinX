@@ -105,6 +105,10 @@ public final class FragmentMeta {
         this.dummyFragment = dummyFragment;
     }
 
+    public FragmentMeta copy(TimeInterval timeInterval) {
+        return new FragmentMeta(this.tsInterval, timeInterval, this.masterStorageUnit);
+    }
+
     public TimeInterval getTimeInterval() {
         return timeInterval;
     }

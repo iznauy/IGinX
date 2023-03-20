@@ -49,6 +49,7 @@ import cn.edu.tsinghua.iginx.utils.Pair;
 import cn.edu.tsinghua.iginx.utils.StringUtils;
 import com.influxdb.client.InfluxDBClient;
 import com.influxdb.client.InfluxDBClientFactory;
+import com.influxdb.client.WriteOptions;
 import com.influxdb.client.domain.Bucket;
 import com.influxdb.client.domain.Organization;
 import com.influxdb.client.domain.WritePrecision;
@@ -519,7 +520,15 @@ public class InfluxDBStorage implements IStorage {
                             .filter(b -> b.getName().equals(storageUnit))
                             .collect(Collectors.toList());
                     if (bucketList.isEmpty()) {
-                        bucket = client.getBucketsApi().createBucket(storageUnit, organization);
+                        try {
+                            bucket = client.getBucketsApi().createBucket(storageUnit, organization);
+                        } catch (Exception e) {
+                            bucketList = client.getBucketsApi()
+                                    .findBucketsByOrgName(this.organizationName).stream()
+                                    .filter(b -> b.getName().equals(storageUnit))
+                                    .collect(Collectors.toList());
+                            bucket = bucketList.get(0);
+                        }
                     } else {
                         bucket = bucketList.get(0);
                     }
