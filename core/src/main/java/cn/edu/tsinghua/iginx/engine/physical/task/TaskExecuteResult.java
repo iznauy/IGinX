@@ -45,6 +45,8 @@ public class TaskExecuteResult {
         if (rowStream instanceof Table) {
             Table table = (Table) rowStream;
             affectRows = table.getRowSize();
+        } else {
+            affectRows = (int) getEstimatedRowSize();
         }
     }
 

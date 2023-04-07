@@ -10,6 +10,7 @@ import lombok.Data;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Data
 public class RequestContext {
@@ -46,6 +47,7 @@ public class RequestContext {
 
     private transient CountDownLatch resultLatch = new CountDownLatch(1);
 
+    private transient AtomicBoolean canceled = new AtomicBoolean(false);
 
     private void init() {
         this.id = SnowFlakeUtils.getInstance().nextId();
@@ -130,4 +132,13 @@ public class RequestContext {
         }
         return this.result;
     }
+
+    public void cancel() {
+        this.canceled.set(true);
+    }
+
+    public boolean isCanceled() {
+        return this.canceled.get();
+    }
+
 }

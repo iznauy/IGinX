@@ -72,7 +72,7 @@ public class ConfigDescriptor {
 
             config.setPolicyClassName(properties.getProperty("policyClassName", "cn.edu.tsinghua.iginx.policy.naive.NativePolicy"));
             config.setMigrationBatchSize(Integer.parseInt(properties.getProperty("migrationBatchSize", "100")));
-            config.setEnableMonitor(Boolean.parseBoolean(properties.getProperty("enableMonitor", "true")));
+            config.setEnableMonitor(Boolean.parseBoolean(properties.getProperty("enableMonitor", "false")));
             config.setLoadBalanceCheckInterval(Integer.parseInt(properties.getProperty("loadBalanceCheckInterval", "10")));
             config.setEnableFragmentCompaction(Boolean.parseBoolean(properties.getProperty("enableFragmentCompaction", "false")));
             config.setFragmentCompactionWriteThreshold(Long.parseLong(properties.getProperty("fragmentCompactionWriteThreshold", "1000")));
@@ -167,6 +167,9 @@ public class ConfigDescriptor {
             config.setStorageHeartbeatThresholdPoolSize(Integer.parseInt(properties.getProperty("storage_heartbeat_threshold_pool_size", "10")));
             config.setStorageRestoreHeartbeatProbability(Double.parseDouble(properties.getProperty("storage_restore_heartbeat_probability", "0.05")));
             config.setMigrationThreadPoolSize(Integer.parseInt(properties.getProperty("migration_thread_pool_size", "20")));
+
+            config.setParallelInOperator(Boolean.parseBoolean(properties.getProperty("parallel_in_op", "true")));
+            config.setUseArr(Boolean.parseBoolean(properties.getProperty("use_arr", "false")));
         } catch (IOException e) {
             logger.error("Fail to load properties: ", e);
         }

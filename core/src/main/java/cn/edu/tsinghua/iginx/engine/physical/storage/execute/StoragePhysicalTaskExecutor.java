@@ -21,6 +21,7 @@ package cn.edu.tsinghua.iginx.engine.physical.storage.execute;
 import cn.edu.tsinghua.iginx.conf.ConfigDescriptor;
 import cn.edu.tsinghua.iginx.engine.physical.GlobalCache;
 import cn.edu.tsinghua.iginx.engine.physical.exception.PhysicalException;
+import cn.edu.tsinghua.iginx.engine.physical.exception.TaskCancelException;
 import cn.edu.tsinghua.iginx.engine.physical.exception.TooManyPhysicalTasksException;
 import cn.edu.tsinghua.iginx.engine.physical.exception.UnexpectedOperatorException;
 import cn.edu.tsinghua.iginx.engine.physical.fault.DefaultFaultTolerancePolicy;
@@ -135,6 +136,10 @@ public class StoragePhysicalTaskExecutor {
                                 long startTime = System.currentTimeMillis();
                                 try {
                                     result = pair.k.execute(task);
+                                    if (task.getContext() != null && task.getContext().isCanceled()) {
+                                        logger.info("task[queryId={}] has cancel.", task.getContext().getId());
+                                        throw new TaskCancelException();
+                                    }
                                     if (task.getContext() != null && task.getContext().isEnableFaultTolerance()) {
                                         // 要求：1. 开启容错功能 2. 存在多个副本可以接力
                                         result = new FaultToleranceStorageTaskRepeater(task, result, storageManager).getFinalResult();

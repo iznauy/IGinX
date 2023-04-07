@@ -17,6 +17,10 @@ public class Migration extends AbstractUnaryOperator {
 
   private String sourceStorageUnitId;
 
+  public Migration(GlobalSource source, FragmentMeta fragmentMeta, List<String> paths, StorageUnitMeta targetStorageUnitMeta) {
+    this(source, 0, 0, fragmentMeta, paths, targetStorageUnitMeta);
+  }
+
   public Migration(GlobalSource source, long sourceStorageEngineId, long targetStorageEngineId,
       FragmentMeta fragmentMeta,
       List<String> paths, StorageUnitMeta targetStorageUnitMeta) {

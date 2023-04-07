@@ -20,6 +20,7 @@ package cn.edu.tsinghua.iginx.engine.physical.memory;
 
 import cn.edu.tsinghua.iginx.conf.ConfigDescriptor;
 import cn.edu.tsinghua.iginx.engine.physical.exception.PhysicalException;
+import cn.edu.tsinghua.iginx.engine.physical.exception.TaskCancelException;
 import cn.edu.tsinghua.iginx.engine.physical.fault.DefaultFaultTolerancePolicy;
 import cn.edu.tsinghua.iginx.engine.physical.fault.FaultTolerancePolicyManager;
 import cn.edu.tsinghua.iginx.engine.physical.memory.queue.MemoryPhysicalTaskQueue;
@@ -80,6 +81,10 @@ public class MemoryPhysicalTaskDispatcher {
                             long startTime = System.currentTimeMillis();
                             try {
                                 result = currentTask.execute();
+                                if (currentTask.getContext() != null && currentTask.getContext().isCanceled()) {
+                                    logger.info("task[queryId={}] has cancel.", currentTask.getContext().getId());
+                                    throw new TaskCancelException();
+                                }
                             } catch (Exception e) {
                                 logger.error("execute memory task failure: ", e);
                                 result = new TaskExecuteResult(new PhysicalException(e));

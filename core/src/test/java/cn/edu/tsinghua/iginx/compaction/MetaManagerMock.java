@@ -5,6 +5,9 @@ import cn.edu.tsinghua.iginx.metadata.IMetaManager;
 import cn.edu.tsinghua.iginx.metadata.entity.*;
 import cn.edu.tsinghua.iginx.metadata.hook.StorageEngineChangeHook;
 import cn.edu.tsinghua.iginx.metadata.hook.StorageUnitHook;
+import cn.edu.tsinghua.iginx.metadata.sync.protocol.NetworkException;
+import cn.edu.tsinghua.iginx.metadata.sync.protocol.SyncProtocol;
+import cn.edu.tsinghua.iginx.migration.storage.StorageMigrationPlan;
 import cn.edu.tsinghua.iginx.policy.simple.TimeSeriesCalDO;
 import cn.edu.tsinghua.iginx.sql.statement.InsertStatement;
 import cn.edu.tsinghua.iginx.thrift.AuthType;
@@ -346,5 +349,65 @@ public class MetaManagerMock implements IMetaManager {
     @Override
     public void submitMaxActiveEndTime() {
 
+    }
+
+    @Override
+    public boolean storeMigrationPlan(StorageMigrationPlan plan) {
+        return false;
+    }
+
+    @Override
+    public List<StorageMigrationPlan> scanStorageMigrationPlan() {
+        return null;
+    }
+
+    @Override
+    public StorageMigrationPlan getStorageMigrationPlan(long storageId) {
+        return null;
+    }
+
+    @Override
+    public boolean transferMigrationPlan(long id, long from, long to) {
+        return false;
+    }
+
+    @Override
+    public boolean deleteMigrationPlan(long id) {
+        return false;
+    }
+
+    @Override
+    public Map<String, String> startMigrationStorageUnits(Map<String, Long> migrationMap, boolean migrationData) {
+        return null;
+    }
+
+    @Override
+    public boolean finishMigrationStorageUnit(String storageUnitId, boolean migrationData) {
+        return false;
+    }
+
+    @Override
+    public boolean updateStorageUnit(StorageUnitMeta storageUnit) {
+        return false;
+    }
+
+    @Override
+    public boolean containsIginx(long id) {
+        return false;
+    }
+
+    @Override
+    public int getIginxClusterSize() {
+        return 0;
+    }
+
+    @Override
+    public void initProtocol(String category) throws NetworkException {
+
+    }
+
+    @Override
+    public SyncProtocol getProtocol(String category) {
+        return null;
     }
 }

@@ -47,6 +47,15 @@ public class QueryResourceManager {
         queries.remove(queryId);
     }
 
+    public boolean cancelQuery(long queryId) {
+        RequestContext context = queries.get(queryId);
+        if (context == null) {
+            return false;
+        }
+        context.cancel();
+        return true;
+    }
+
     private static class QueryManagerHolder {
 
         private static final QueryResourceManager INSTANCE = new QueryResourceManager();

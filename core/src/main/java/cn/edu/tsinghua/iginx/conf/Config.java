@@ -55,7 +55,7 @@ public class Config {
 
     private String policyClassName = "cn.edu.tsinghua.iginx.policy.naive.NativePolicy";
 
-    private boolean enableMonitor = true;
+    private boolean enableMonitor = false;
 
     private int loadBalanceCheckInterval = 3;
 
@@ -245,6 +245,10 @@ public class Config {
     private double storageRestoreHeartbeatProbability = 0.05;
 
     private int migrationThreadPoolSize = 20;
+
+    private boolean parallelInOperator = true;
+
+    private boolean useArr = false;
 
     public int getMaxTimeseriesLength() {
         return maxTimeseriesLength;
@@ -976,5 +980,21 @@ public class Config {
 
     public void setFaultToleranceMaxPersistSize(int faultToleranceMaxPersistSize) {
         this.faultToleranceMaxPersistSize = faultToleranceMaxPersistSize;
+    }
+
+    public boolean isParallelInOperator() {
+        return parallelInOperator;
+    }
+
+    public void setParallelInOperator(boolean parallelInOperator) {
+        this.parallelInOperator = parallelInOperator;
+    }
+
+    public boolean isUseArr() {
+        return useArr;
+    }
+
+    public void setUseArr(boolean useArr) {
+        this.useArr = useArr;
     }
 }

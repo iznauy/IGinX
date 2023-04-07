@@ -7,6 +7,7 @@ import cn.edu.tsinghua.iginx.engine.shared.data.read.Row;
 import cn.edu.tsinghua.iginx.engine.shared.data.read.RowStream;
 import cn.edu.tsinghua.iginx.engine.shared.operator.GroupBy;
 import java.util.Deque;
+import java.util.LinkedList;
 
 public class GroupByLazyStream extends UnaryLazyStream {
 
@@ -46,7 +47,7 @@ public class GroupByLazyStream extends UnaryLazyStream {
     }
 
     private void cacheResult() throws PhysicalException {
-        this.cache = RowUtils.cacheGroupByResult(groupBy, stream);
+        this.cache = new LinkedList<>(RowUtils.cacheGroupByResult(groupBy, stream));
         if (cache.isEmpty()) {
             header = Header.EMPTY_HEADER;
         } else {

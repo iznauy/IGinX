@@ -20,7 +20,7 @@ public class FaultTolerancePolicyManager {
             case "default":
                 return DefaultFaultTolerancePolicy.getInstance();
             case "naive":
-                return null;
+                return NaiveFaultTolerancePolicy.getInstance();
             case "greedy":
                 return GreedyFaultTolerancePolicy.getInstance();
             default:

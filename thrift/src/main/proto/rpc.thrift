@@ -615,6 +615,11 @@ struct RemoveStorageEngineReq {
     3: required bool sync
 }
 
+struct CancelStatementReq {
+    1: required i64 sessionId
+    2: required i64 queryId
+}
+
 service IService {
 
     OpenSessionResp openSession(1: OpenSessionReq req);
@@ -668,6 +673,8 @@ service IService {
     FetchResultsResp fetchResults(1: FetchResultsReq req);
 
     Status closeStatement(1: CloseStatementReq req);
+
+    Status cancelStatement(1: CancelStatementReq req);
 
     CommitTransformJobResp commitTransformJob(1: CommitTransformJobReq req);
 

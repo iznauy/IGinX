@@ -18,6 +18,7 @@
  */
 package cn.edu.tsinghua.iginx.engine.physical.memory.execute.utils;
 
+import cn.edu.tsinghua.iginx.conf.ConfigDescriptor;
 import cn.edu.tsinghua.iginx.constant.GlobalConstant;
 import cn.edu.tsinghua.iginx.engine.physical.exception.InvalidOperatorParameterException;
 import cn.edu.tsinghua.iginx.engine.physical.exception.PhysicalException;
@@ -35,20 +36,32 @@ import cn.edu.tsinghua.iginx.engine.shared.function.system.utils.ValueUtils;
 import cn.edu.tsinghua.iginx.engine.shared.operator.GroupBy;
 import cn.edu.tsinghua.iginx.thrift.DataType;
 import cn.edu.tsinghua.iginx.utils.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Collectors;
 
 import static cn.edu.tsinghua.iginx.thrift.DataType.BOOLEAN;
 
 public class RowUtils {
+
+    private static final boolean parallelInOp = ConfigDescriptor.getInstance().getConfig().isParallelInOperator();
+
+    private static final boolean useArr = ConfigDescriptor.getInstance().getConfig().isUseArr();
+
+    private static final Logger logger = LoggerFactory.getLogger(RowUtils.class);
+
+    static {
+        logger.info("[FaultTolerance][RowUtils] parallel in op: {}, use arr: {}", parallelInOp, useArr);
+        int cpuNum = Runtime.getRuntime().availableProcessors();
+        String property = System.getProperty("java.util.concurrent.ForkJoinPool.common.parallelism");
+        logger.info("[FaultTolerance][RowUtils] cpu number: {}, property: {}", cpuNum, property);
+        logger.info("[FaultTolerance][RowUtils] parallelism: {}, pool size: {}", ForkJoinPool.getCommonPoolParallelism(), ForkJoinPool.commonPool().getPoolSize());
+    }
 
     public static Row transform(Row row, Header targetHeader) {
         Object[] values = new Object[targetHeader.getFieldSize()];
@@ -380,7 +393,14 @@ public class RowUtils {
         }
     }
 
-    public static LinkedList<Row> cacheGroupByResult(GroupBy groupBy, RowStream stream)
+    private static <T> List<T> newList() {
+        if (useArr) {
+            return new ArrayList<>();
+        }
+        return new LinkedList<>();
+    }
+
+    public static List<Row> cacheGroupByResult(GroupBy groupBy, RowStream stream)
         throws PhysicalException {
         List<String> cols = groupBy.getGroupByCols();
         int[] colIndex = new int[cols.size()];
@@ -400,26 +420,40 @@ public class RowUtils {
 
         Map<Integer, List<Row>> groups = new HashMap<>();
         Map<Integer, List<Object>> hashValuesMap = new HashMap<>();
-        while (stream.hasNext()) {
-            Row row = stream.next();
-            Object[] values = row.getValues();
-            List<Object> hashValues = new LinkedList<>();
-            for (int index : colIndex) {
-                if (values[index] instanceof byte[]) {
-                    hashValues.add(new String((byte[]) values[index]));
-                } else {
-                    hashValues.add(values[index]);
+        if (parallelInOp) {
+            Pair<Map<Integer, List<Row>>, Map<Integer, List<Object>>> pair = parallelBuild(stream, colIndex);
+            groups = pair.getK();
+            hashValuesMap = pair.getV();
+        } else {
+            List<Row> rows;
+            if (stream instanceof Table) {
+                rows = ((Table) stream).getRows();
+            } else {
+                rows = new ArrayList<>();
+                while (stream.hasNext()) {
+                    rows.add(stream.next());
                 }
             }
+            for (Row row: rows) {
+                Object[] values = row.getValues();
+                List<Object> hashValues = new LinkedList<>();
+                for (int index : colIndex) {
+                    if (values[index] instanceof byte[]) {
+                        hashValues.add(new String((byte[]) values[index]));
+                    } else {
+                        hashValues.add(values[index]);
+                    }
+                }
 
-            int hash = hashValues.hashCode();
-            if (groups.containsKey(hash)) {
-                groups.get(hash).add(row);
-            } else {
-                List<Row> sameHashRows = new LinkedList<>();
-                sameHashRows.add(row);
-                groups.put(hash, sameHashRows);
-                hashValuesMap.put(hash, hashValues);
+                int hash = hashValues.hashCode();
+                if (groups.containsKey(hash)) {
+                    groups.get(hash).add(row);
+                } else {
+                    List<Row> sameHashRows = newList();
+                    sameHashRows.add(row);
+                    groups.put(hash, sameHashRows);
+                    hashValuesMap.put(hash, hashValues);
+                }
             }
         }
 
@@ -451,7 +485,7 @@ public class RowUtils {
         Header newHeader = new Header(fields);
         int fieldSize = newHeader.getFieldSize();
 
-        LinkedList<Row> cache = new LinkedList<>();
+        List<Row> cache = newList();
         for (Entry<Integer, List<Object>> entry : hashValuesMap.entrySet()) {
             Object[] values = new Object[fieldSize];
             for (int i = 0; i < entry.getValue().size(); i++) {
@@ -465,6 +499,74 @@ public class RowUtils {
             cache.add(new Row(newHeader, values));
         }
         return cache;
+    }
+
+    private static Pair<Map<Integer, List<Row>>, Map<Integer, List<Object>>> seqBuild(
+            RowStream stream, int[] colIndex) throws PhysicalException {
+        Map<Integer, List<Row>> groups = new HashMap<>();
+        Map<Integer, List<Object>> hashValuesMap = new HashMap<>();
+        while (stream.hasNext()) {
+            Row row = stream.next();
+            Object[] values = row.getValues();
+            List<Object> hashValues = new LinkedList<>();
+            for (int index : colIndex) {
+                if (values[index] instanceof byte[]) {
+                    hashValues.add(new String((byte[]) values[index]));
+                } else {
+                    hashValues.add(values[index]);
+                }
+            }
+
+            int hash = hashValues.hashCode();
+            if (groups.containsKey(hash)) {
+                groups.get(hash).add(row);
+            } else {
+                List<Row> sameHashRows = new LinkedList<>();
+                sameHashRows.add(row);
+                groups.put(hash, sameHashRows);
+                hashValuesMap.put(hash, hashValues);
+            }
+        }
+        return new Pair<>(groups, hashValuesMap);
+    }
+
+    private static Pair<Map<Integer, List<Row>>, Map<Integer, List<Object>>> parallelBuild(
+            RowStream stream, int[] colIndex) throws PhysicalException {
+        List<Row> rows;
+        if (stream instanceof Table) {
+            rows = ((Table) stream).getRows();
+        } else {
+            rows = new ArrayList<>();
+            while (stream.hasNext()) {
+                rows.add(stream.next());
+            }
+        }
+
+        Map<Integer, List<Object>> hashValuesMap = new ConcurrentHashMap<>();
+        //Map<Integer, List<Object>> hashValuesMap = new HashMap<>();
+        Map<Integer, List<Row>> groups =
+                Collections
+                .synchronizedList(rows)
+                .parallelStream()
+                //.stream()
+                .collect(
+                        Collectors.groupingBy(row -> {
+                            Object[] values = row.getValues();
+                            List<Object> hashValues = new LinkedList<>();
+                            for (int index : colIndex) {
+                                if (values[index] instanceof byte[]) {
+                                    hashValues.add(new String((byte[]) values[index]));
+                                } else {
+                                    hashValues.add(values[index]);
+                                }
+                            }
+
+                            int hash = hashValues.hashCode();
+                            hashValuesMap.putIfAbsent(hash, hashValues);
+                            return hash;
+                        })
+                );
+        return new Pair<>(groups, hashValuesMap);
     }
 
     public static void sortRows(List<Row> rows, boolean asc, List<String> sortByCols)

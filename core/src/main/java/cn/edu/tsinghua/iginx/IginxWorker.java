@@ -591,6 +591,16 @@ public class IginxWorker implements IService.Iface {
     }
 
     @Override
+    public Status cancelStatement(CancelStatementReq req) {
+        if (queryManager.cancelQuery(req.queryId)) {
+            logger.info("[LongQuery][IginxWorker][queryId={}] cancel query success.", req.queryId);
+            return RpcUtils.SUCCESS;
+        }
+        logger.info("[LongQuery][IginxWorker][queryId={}] cancel query failure, for the sake of request context is null", req.queryId);
+        return RpcUtils.FAILURE;
+    }
+
+    @Override
     public CommitTransformJobResp commitTransformJob(CommitTransformJobReq req) {
         TransformJobManager manager = TransformJobManager.getInstance();
         long jobId = manager.commit(req);
