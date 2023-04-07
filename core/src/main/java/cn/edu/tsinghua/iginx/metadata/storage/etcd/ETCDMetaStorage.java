@@ -24,7 +24,9 @@ import cn.edu.tsinghua.iginx.metadata.cache.IMetaCache;
 import cn.edu.tsinghua.iginx.metadata.entity.*;
 import cn.edu.tsinghua.iginx.metadata.hook.*;
 import cn.edu.tsinghua.iginx.metadata.storage.IMetaStorage;
+import cn.edu.tsinghua.iginx.metadata.sync.protocol.SyncProtocol;
 import cn.edu.tsinghua.iginx.metadata.utils.ReshardStatus;
+import cn.edu.tsinghua.iginx.migration.storage.StorageMigrationPlan;
 import cn.edu.tsinghua.iginx.utils.JsonUtils;
 import cn.edu.tsinghua.iginx.utils.Pair;
 import io.etcd.jetcd.*;
@@ -36,7 +38,6 @@ import io.etcd.jetcd.options.WatchOption;
 import io.etcd.jetcd.watch.WatchEvent;
 import io.etcd.jetcd.watch.WatchResponse;
 import io.grpc.stub.StreamObserver;
-import org.apache.zookeeper.CreateMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -170,13 +171,13 @@ public class ETCDMetaStorage implements IMetaStorage {
 
     private long timeseriesHeatCounterLease = -1L;
 
-    private Watch.Watcher reshardStatusWatcher;
+    private final Watch.Watcher reshardStatusWatcher;
     private ReshardStatusChangeHook reshardStatusChangeHook = null;
     private long reshardStatusLease = -1L;
-    private Watch.Watcher reshardCounterWatcher;
+    private final Watch.Watcher reshardCounterWatcher;
     private ReshardCounterChangeHook reshardCounterChangeHook = null;
     private long reshardCounterLease = -1L;
-    private Watch.Watcher maxActiveEndTimeStatisticsWatcher;
+    private final Watch.Watcher maxActiveEndTimeStatisticsWatcher;
     private MaxActiveEndTimeStatisticsChangeHook maxActiveEndTimeStatisticsChangeHook = null;
     private long maxActiveEndTimeStatisticsLease = -1L;
 
@@ -286,11 +287,11 @@ public class ETCDMetaStorage implements IMetaStorage {
                             switch (event.getEventType()) {
                                 case PUT:
                                     storageEngine = JsonUtils.fromJson(event.getKeyValue().getValue().getBytes(), StorageEngineMeta.class);
-                                    storageChangeHook.onChange(storageEngine.getId(), storageEngine);
+                                    storageChangeHook.onChange(storageEngine.getId(), null, storageEngine);
                                     break;
                                 case DELETE:
                                     storageEngine = JsonUtils.fromJson(event.getPrevKV().getValue().getBytes(), StorageEngineMeta.class);
-                                    storageChangeHook.onChange(storageEngine.getId(), null);
+                                    storageChangeHook.onChange(storageEngine.getId(), null, null);
                                     break;
                                 default:
                                     logger.error("unexpected watchEvent: " + event.getEventType());
@@ -583,11 +584,36 @@ public class ETCDMetaStorage implements IMetaStorage {
         return INSTANCE;
     }
 
+    @Override
+    public boolean storeMigrationPlan(StorageMigrationPlan plan) {
+        return false;
+    }
+
+    @Override
+    public List<StorageMigrationPlan> scanStorageMigrationPlan() {
+        return null;
+    }
+
+    @Override
+    public StorageMigrationPlan getStorageMigrationPlan(long storageId) {
+        return null;
+    }
+
+    @Override
+    public boolean transferMigrationPlan(long id, long from, long to) {
+        return false;
+    }
+
+    @Override
+    public boolean deleteMigrationPlan(long id) {
+        return false;
+    }
+
     private long nextId(String category) throws InterruptedException, ExecutionException {
         return client.getKVClient().put(
-                ByteSequence.from(category.getBytes()),
-                ByteSequence.EMPTY,
-                PutOption.newBuilder().withPrevKV().build())
+                        ByteSequence.from(category.getBytes()),
+                        ByteSequence.EMPTY,
+                        PutOption.newBuilder().withPrevKV().build())
                 .get()
                 .getPrevKv()
                 .getVersion();
@@ -972,13 +998,13 @@ public class ETCDMetaStorage implements IMetaStorage {
         try {
             client.getKVClient().delete(ByteSequence.from((FRAGMENT_PREFIX + tsInterval.toString() + "/" + fragmentMeta.getTimeInterval().toString()).getBytes()));
             GetResponse response = this.client.getKVClient()
-                    .get(ByteSequence.from((FRAGMENT_PREFIX + tsInterval.toString()).getBytes()),
-                            GetOption.newBuilder().withPrefix(ByteSequence.from((FRAGMENT_PREFIX + tsInterval.toString()).getBytes())).build())
+                    .get(ByteSequence.from((FRAGMENT_PREFIX + tsInterval).getBytes()),
+                            GetOption.newBuilder().withPrefix(ByteSequence.from((FRAGMENT_PREFIX + tsInterval).getBytes())).build())
                     .get();
             if (response.getKvs().isEmpty()) {
-                client.getKVClient().delete(ByteSequence.from((FRAGMENT_PREFIX + tsInterval.toString()).getBytes()));
+                client.getKVClient().delete(ByteSequence.from((FRAGMENT_PREFIX + tsInterval).getBytes()));
             }
-            client.getKVClient().put(ByteSequence.from((FRAGMENT_PREFIX + fragmentMeta.getTsInterval().toString() + "/" + fragmentMeta.getTimeInterval().toString()).getBytes()),
+            client.getKVClient().put(ByteSequence.from((FRAGMENT_PREFIX + fragmentMeta.getTsInterval().toString() + "/" + fragmentMeta.getTimeInterval()).getBytes()),
                     ByteSequence.from(JsonUtils.toJson(fragmentMeta))).get();
         } catch (InterruptedException | ExecutionException e) {
             throw new MetaStorageException("update storage unit error: ", e);
@@ -990,9 +1016,9 @@ public class ETCDMetaStorage implements IMetaStorage {
         try {
             client.getKVClient().delete(ByteSequence.from((FRAGMENT_PREFIX + fragmentMeta.getTsInterval().toString() + "/" + fragmentMeta.getTimeInterval().toString()).getBytes()));
             // 删除不需要的统计数据
-            client.getKVClient().delete(ByteSequence.from((STATISTICS_FRAGMENT_REQUESTS_PREFIX_WRITE + "/" + fragmentMeta.getTsInterval().toString() + "/" + fragmentMeta.getTimeInterval().toString()).getBytes()));
-            client.getKVClient().delete(ByteSequence.from((STATISTICS_FRAGMENT_REQUESTS_PREFIX_READ + "/" + fragmentMeta.getTsInterval().toString() + "/" + fragmentMeta.getTimeInterval().toString()).getBytes()));
-            client.getKVClient().delete(ByteSequence.from((STATISTICS_FRAGMENT_POINTS_PREFIX + "/" + fragmentMeta.getTsInterval().toString() + "/" + fragmentMeta.getTimeInterval().toString()).getBytes()));
+            client.getKVClient().delete(ByteSequence.from((STATISTICS_FRAGMENT_REQUESTS_PREFIX_WRITE + "/" + fragmentMeta.getTsInterval() + "/" + fragmentMeta.getTimeInterval()).getBytes()));
+            client.getKVClient().delete(ByteSequence.from((STATISTICS_FRAGMENT_REQUESTS_PREFIX_READ + "/" + fragmentMeta.getTsInterval() + "/" + fragmentMeta.getTimeInterval()).getBytes()));
+            client.getKVClient().delete(ByteSequence.from((STATISTICS_FRAGMENT_POINTS_PREFIX + "/" + fragmentMeta.getTsInterval() + "/" + fragmentMeta.getTimeInterval()).getBytes()));
         } catch (Exception e) {
             throw new MetaStorageException("get error when remove fragment", e);
         }
@@ -1050,7 +1076,7 @@ public class ETCDMetaStorage implements IMetaStorage {
             lockUser();
             Map<String, UserMeta> users = new HashMap<>();
             GetResponse response = this.client.getKVClient().get(ByteSequence.from(USER_PREFIX.getBytes()),
-                    GetOption.newBuilder().withPrefix(ByteSequence.from(USER_PREFIX.getBytes())).build())
+                            GetOption.newBuilder().withPrefix(ByteSequence.from(USER_PREFIX.getBytes())).build())
                     .get();
             if (response.getCount() != 0L) { // 服务器上已经有了，本地的不作数
                 response.getKvs().forEach(e -> {
@@ -1171,7 +1197,7 @@ public class ETCDMetaStorage implements IMetaStorage {
     }
 
     @Override
-    public Map<String, Long> loadTimeseriesHeat() throws MetaStorageException, Exception {
+    public Map<String, Long> loadTimeseriesHeat() throws Exception {
         Map<String, Long> timeseriesHeatMap = new HashMap<>();
         GetResponse response = this.client.getKVClient().get(ByteSequence.from(STATISTICS_TIMESERIES_HEAT_PREFIX.getBytes()), GetOption.newBuilder().withPrefix(ByteSequence.from(STATISTICS_TIMESERIES_HEAT_PREFIX.getBytes())).build()).get();
         for (KeyValue kv : response.getKvs()) {
@@ -1772,7 +1798,7 @@ public class ETCDMetaStorage implements IMetaStorage {
             lockTransform();
             Map<String, TransformTaskMeta> taskMetaMap = new HashMap<>();
             GetResponse response = this.client.getKVClient().get(ByteSequence.from(TRANSFORM_PREFIX.getBytes()),
-                    GetOption.newBuilder().withPrefix(ByteSequence.from(TRANSFORM_PREFIX.getBytes())).build())
+                            GetOption.newBuilder().withPrefix(ByteSequence.from(TRANSFORM_PREFIX.getBytes())).build())
                     .get();
             if (response.getCount() != 0L) {
                 response.getKvs().forEach(e -> {
@@ -1922,6 +1948,16 @@ public class ETCDMetaStorage implements IMetaStorage {
 
         this.client.close();
         this.client = null;
+    }
+
+    @Override
+    public void initProtocol(String category) {
+
+    }
+
+    @Override
+    public SyncProtocol getProtocol(String category) {
+        return null;
     }
 
 }

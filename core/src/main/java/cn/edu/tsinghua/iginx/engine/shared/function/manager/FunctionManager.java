@@ -22,6 +22,7 @@ import cn.edu.tsinghua.iginx.conf.Config;
 import cn.edu.tsinghua.iginx.conf.ConfigDescriptor;
 import cn.edu.tsinghua.iginx.engine.shared.function.Function;
 import cn.edu.tsinghua.iginx.engine.shared.function.system.*;
+import cn.edu.tsinghua.iginx.engine.shared.function.tsbs.Transposition;
 import cn.edu.tsinghua.iginx.engine.shared.function.udf.python.PyUDAF;
 import cn.edu.tsinghua.iginx.engine.shared.function.udf.python.PyUDSF;
 import cn.edu.tsinghua.iginx.engine.shared.function.udf.python.PyUDTF;
@@ -58,6 +59,8 @@ public class FunctionManager {
     private FunctionManager() {
         this.functions = new HashMap<>();
         this.initSystemFunctions();
+
+        logger.info("[FaultToleranceQuery][Debug][FunctionManager] needInitBasicUDF = {}", config.isNeedInitBasicUDFFunctions());
         if (config.isNeedInitBasicUDFFunctions()) {
             this.initBasicUDFFunctions();
         }
@@ -68,6 +71,7 @@ public class FunctionManager {
     }
 
     private void initSystemFunctions() {
+        logger.info("[FaultToleranceQuery][Debug][FunctionManager] init system function");
         registerFunction(Avg.getInstance());
         registerFunction(Count.getInstance());
         registerFunction(FirstValue.getInstance());
@@ -78,12 +82,18 @@ public class FunctionManager {
         registerFunction(Min.getInstance());
         registerFunction(Sum.getInstance());
         registerFunction(ArithmeticExpr.getInstance());
+
+        // for tsbs
+        logger.info("[FaultToleranceQuery][Debug][FunctionManager] init system function transposition");
+        registerFunction(Transposition.getInstance());
     }
 
     private void initBasicUDFFunctions() {
+        logger.info("[FaultToleranceQuery][Debug][FunctionManager] init basic udf functions");
         List<TransformTaskMeta> metaList = new ArrayList<>();
         List<String> udfList = config.getUdfList();
         for (String udf: udfList) {
+            logger.info("[FaultToleranceQuery][Debug][FunctionManager] udf line = {}, try to load...", udf);
             String[] udfInfo = udf.split(",");
             if (udfInfo.length != 4) {
                 logger.error("udf info len must be 4.");
@@ -154,25 +164,25 @@ public class FunctionManager {
             throw new IllegalArgumentException(String.format("UDF %s not registered in node ip=%s", identifier, config.getIp()));
         }
 
-        String pythonCMD = config.getPythonCMD();
-        PythonInterpreterConfig config = PythonInterpreterConfig
-            .newBuilder()
-            .setPythonExec(pythonCMD)
-            .addPythonPaths(PATH)
-            .build();
-
-        String fileName = taskMeta.getFileName();
-        String moduleName = fileName.substring(0, fileName.indexOf(PY_SUFFIX));
-        String className = taskMeta.getClassName();
+//        String pythonCMD = config.getPythonCMD();
+//        PythonInterpreterConfig config = PythonInterpreterConfig
+//            .newBuilder()
+//            .setPythonExec(pythonCMD)
+//            .addPythonPaths(PATH)
+//            .build();
+//
+//        String fileName = taskMeta.getFileName();
+//        String moduleName = fileName.substring(0, fileName.indexOf(PY_SUFFIX));
+//        String className = taskMeta.getClassName();
 
         // init the python udf
         BlockingQueue<PythonInterpreter> queue = new LinkedBlockingQueue<>();
-        for (int i = 0; i < INTERPRETER_NUM; i++) {
-            PythonInterpreter interpreter = new PythonInterpreter(config);
-            interpreter.exec(String.format("import %s", moduleName));
-            interpreter.exec(String.format("t = %s.%s()", moduleName, className));
-            queue.add(interpreter);
-        }
+//        for (int i = 0; i < INTERPRETER_NUM; i++) {
+//            PythonInterpreter interpreter = new PythonInterpreter(config);
+//            interpreter.exec(String.format("import %s", moduleName));
+//            interpreter.exec(String.format("t = %s.%s()", moduleName, className));
+//            queue.add(interpreter);
+//        }
 
         if (taskMeta.getType().equals(UDFType.UDAF)) {
             PyUDAF udaf = new PyUDAF(queue, identifier);
@@ -187,9 +197,9 @@ public class FunctionManager {
             functions.put(identifier, udsf);
             return udsf;
         } else {
-            while (!queue.isEmpty()) {
-                queue.poll().close();
-            }
+//            while (!queue.isEmpty()) {
+//                queue.poll().close();
+//            }
             throw new IllegalArgumentException(String.format("UDF %s registered in type %s", identifier, taskMeta.getType()));
         }
     }

@@ -56,7 +56,8 @@ public enum OperatorType {
     Rename,
     Reorder,
     AddSchemaPrefix,
-    GroupBy;
+    GroupBy,
+    Load;
 
     private int value;
 
@@ -74,7 +75,6 @@ public enum OperatorType {
     }
 
     private static class OperatorTypeCounter {
-
         private static int nextValue = 0;
     }
 
